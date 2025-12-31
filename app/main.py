@@ -72,7 +72,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 # Include API routers
-from app.api.v1 import auth, user, ai, images, works, subscription, scenes, settings_api
+from app.api.v1 import auth, user, ai, images, works, subscription, scenes, settings as settings_api
 
 app.include_router(auth.router, prefix=settings.api_v1_prefix, tags=["Authentication"])
 app.include_router(user.router, prefix=settings.api_v1_prefix, tags=["User"])
