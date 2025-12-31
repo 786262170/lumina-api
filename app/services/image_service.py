@@ -173,9 +173,6 @@ async def execute_image_processing(
     db: Session
 ):
     """Execute image processing in background"""
-    from app.models.image import ProcessTask, TaskStatus, ImageFormat
-    from datetime import datetime
-    
     task = db.query(ProcessTask).filter(ProcessTask.id == task_id).first()
     if not task:
         return
@@ -306,7 +303,7 @@ def get_process_result(task_id: str, user: User, db: Session) -> ProcessResultRe
                 width=0,
                 height=0,
                 size=0,
-                format="jpg",
+                format=ImageFormat.JPG,
                 operations=[]
             ),
             processingTime=0,

@@ -20,7 +20,8 @@ from app.services.image_service import (
     process_image_task,
     get_process_status,
     get_process_result,
-    generate_task_id
+    generate_task_id,
+    generate_image_id
 )
 from app.exceptions import BadRequestException
 import httpx
@@ -63,7 +64,6 @@ async def batch_process_images_endpoint(
     db: Session = Depends(get_db)
 ):
     """批量处理图片"""
-    from app.services.image_service import process_image_task, generate_task_id
     from app.schemas.image import ProcessImageRequest
     
     batch_task_id = f"batch_{generate_task_id()}"

@@ -10,7 +10,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.config import settings
 from app.database import Base
-from app.models import user, image, work, subscription, task
+
+# Import all models to ensure they are registered with Base.metadata
+from app.models.user import User, VerificationCode
+from app.models.image import Image, ProcessTask
+from app.models.work import Work
+from app.models.subscription import SubscriptionPlan, Subscription, Order
+from app.models.task import QuizSession
 
 # this is the Alembic Config object
 config = context.config
