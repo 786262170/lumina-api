@@ -22,16 +22,12 @@ async def send_verification_code_endpoint(
     db: Session = Depends(get_db)
 ):
     """发送验证码"""
-    try:
-        code, expires_in = send_verification_code(request.phoneNumber, db)
-        return SendCodeResponse(
-            success=True,
-            message="验证码已发送",
-            expiresIn=expires_in
-        )
-    except Exception as e:
-        # Rate limiting check would go here
-        raise TooManyRequestsException("请求过于频繁，请稍后再试")
+    code, expires_in = send_verification_code(request.phoneNumber, db)
+    return SendCodeResponse(
+        success=True,
+        message="验证码已发送",
+        expiresIn=expires_in
+    )
 
 
 @router.post("/auth/login", response_model=LoginResponse)

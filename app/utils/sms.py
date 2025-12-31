@@ -14,7 +14,21 @@ def send_verification_code(phone_number: str, db: Session) -> tuple[str, int]:
     """
     Send verification code to phone number
     Returns: (code, expires_in_seconds)
+    Raises: TooManyRequestsException if rate limit exceeded
     """
+    from app.exceptions import TooManyRequestsException
+    from sqlalchemy import func
+    
+    # Check rate limit: max 1 request per minute per phone number
+    one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
+    recent_count = db.query(func.count(VerificationCode.id)).filter(
+        VerificationCode.phone_number == phone_number,
+        VerificationCode.created_at > one_minute_ago
+    ).scalar()
+    
+    if recent_count > 0:
+        raise TooManyRequestsException("请求过于频繁，请稍后再试")
+    
     if settings.sms_mock_mode:
         # Mock mode: return fixed code for development
         code = settings.sms_mock_code
