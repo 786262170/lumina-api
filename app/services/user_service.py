@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
 from app.models.user import User
-from app.models.image import Image, ProcessTask
+from app.models.image import Image, ProcessTask, TaskStatus
 from app.models.work import Work
 from app.models.subscription import Subscription
 from app.schemas.user import UserProfile, UpdateUserProfileRequest, UserStats
@@ -45,7 +45,7 @@ def get_user_stats(user: User, db: Session) -> UserStats:
     # Count processed images
     processed_count = db.query(ProcessTask).filter(
         ProcessTask.user_id == user.id,
-        ProcessTask.status == "completed"
+        ProcessTask.status == TaskStatus.COMPLETED
     ).count()
     
     # Calculate storage used

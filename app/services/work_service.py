@@ -33,11 +33,17 @@ def get_works(
     
     works = query.order_by(Work.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     
+    # Get processed images for all works
+    processed_image_ids = [work.processed_image_id for work in works]
+    processed_images = {
+        img.id: img for img in db.query(Image).filter(Image.id.in_(processed_image_ids)).all()
+    } if processed_image_ids else {}
+    
     work_schemas = [
         WorkSchema(
             id=work.id,
             filename=work.filename,
-            thumbnail=work.processed_image.thumbnail if work.processed_image else None,
+            thumbnail=processed_images.get(work.processed_image_id).thumbnail if work.processed_image_id in processed_images else None,
             category=work.category,
             size=work.size,
             createdAt=work.created_at
@@ -111,7 +117,8 @@ def get_work_detail(work_id: str, user: User, db: Session) -> WorkDetail:
     if not work:
         raise NotFoundException("作品不存在")
     
-    processed_image = work.processed_image
+    # Get processed image manually
+    processed_image = db.query(Image).filter(Image.id == work.processed_image_id).first()
     if not processed_image:
         raise NotFoundException("处理后的图片不存在")
     

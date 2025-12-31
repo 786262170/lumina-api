@@ -90,7 +90,10 @@ def get_current_subscription(user: User, db: Session) -> CurrentSubscriptionResp
     if not subscription:
         raise NotFoundException("用户未订阅")
     
-    plan = subscription.plan
+    # Get plan manually
+    plan = db.query(SubscriptionPlan).filter(SubscriptionPlan.id == subscription.plan_id.value).first()
+    if not plan:
+        raise NotFoundException("订阅计划不存在")
     
     return CurrentSubscriptionResponse(
         planId=PlanId(subscription.plan_id.value),

@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
 from app.schemas.auth import (
     SendCodeRequest,
     SendCodeResponse,
@@ -11,6 +14,7 @@ from app.schemas.auth import (
 from app.schemas.common import SuccessResponse
 from app.services.auth_service import create_guest_user, login_with_phone, login_with_wechat
 from app.utils.sms import send_verification_code
+from app.utils.jwt import add_token_to_blacklist, revoke_user_tokens, verify_token
 from app.exceptions import BadRequestException, TooManyRequestsException
 
 router = APIRouter()
@@ -76,9 +80,27 @@ async def guest_mode_endpoint(db: Session = Depends(get_db)):
 
 @router.post("/auth/logout", response_model=SuccessResponse)
 async def logout_endpoint(
-    # Token would be validated by dependency
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """登出"""
-    # TODO: Add token to blacklist
+    """
+    登出
+    将当前 token 加入黑名单，使其失效
+    """
+    token = credentials.credentials
+    
+    # Verify token to get expiration time
+    payload = verify_token(token)
+    if payload:
+        # Calculate remaining TTL
+        from datetime import datetime
+        exp = payload.get("exp")
+        if exp:
+            current_time = datetime.utcnow().timestamp()
+            expires_in = int(exp - current_time)
+            if expires_in > 0:
+                # Add token to blacklist with remaining TTL
+                add_token_to_blacklist(token, expires_in)
+    
     return SuccessResponse(success=True, message="登出成功")

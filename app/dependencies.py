@@ -21,7 +21,7 @@ async def get_current_user(
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
+            detail="Invalid authentication credentials or token has been revoked",
             headers={"WWW-Authenticate": "Bearer"},
         )
     

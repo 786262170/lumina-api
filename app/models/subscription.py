@@ -1,5 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, JSON, Enum as SQLEnum
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, JSON, Enum as SQLEnum
 from datetime import datetime
 import enum
 from app.database import Base
@@ -43,16 +42,12 @@ class Subscription(Base):
     __tablename__ = "subscriptions"
 
     id = Column(String(50), primary_key=True, index=True)
-    user_id = Column(String(50), ForeignKey("users.id"), nullable=False, index=True)
-    plan_id = Column(SQLEnum(PlanId), nullable=False)
+    user_id = Column(String(50), nullable=False, index=True)
+    plan_id = Column(SQLEnum(PlanId), nullable=False, index=True)
     start_date = Column(DateTime, nullable=False)
     expiry_date = Column(DateTime, nullable=False)
     is_active = Column(Boolean, default=True)
     auto_renew = Column(Boolean, default=True)
-
-    # Relationships
-    user = relationship("User", backref="subscriptions")
-    plan = relationship("SubscriptionPlan")
 
     def __repr__(self):
         return f"<Subscription(id={self.id}, user_id={self.user_id}, plan_id={self.plan_id})>"
@@ -62,8 +57,8 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(String(50), primary_key=True, index=True)
-    user_id = Column(String(50), ForeignKey("users.id"), nullable=False, index=True)
-    plan_id = Column(SQLEnum(PlanId), nullable=False)
+    user_id = Column(String(50), nullable=False, index=True)
+    plan_id = Column(SQLEnum(PlanId), nullable=False, index=True)
     amount = Column(Float, nullable=False)
     payment_method = Column(SQLEnum(PaymentMethod), nullable=False)
     status = Column(SQLEnum(OrderStatus), default=OrderStatus.PENDING, nullable=False)
@@ -72,10 +67,6 @@ class Order(Base):
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     paid_at = Column(DateTime, nullable=True)
-
-    # Relationships
-    user = relationship("User", backref="orders")
-    plan = relationship("SubscriptionPlan")
 
     def __repr__(self):
         return f"<Order(id={self.id}, user_id={self.user_id}, status={self.status})>"
