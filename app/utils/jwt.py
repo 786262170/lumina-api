@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from jose import JWTError, jwt
+import hashlib
 from app.config import settings
 from app.utils.redis_client import get_redis_client
+from app.utils.logger import logger
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -78,19 +80,27 @@ def add_token_to_blacklist(token: str, expires_in_seconds: int) -> bool:
     redis_client = get_redis_client()
     if redis_client is None:
         # Redis not available, skip blacklist (fallback mode)
+        logger.warning("Redis is not enabled. Token blacklist will not work. Please set REDIS_ENABLED=true in .env")
         return False
     
     try:
-        # Use token as key, set expiration time
-        # Key format: blacklist:token_hash (using first 32 chars as hash)
-        token_hash = token[:32] if len(token) > 32 else token
+        # Use SHA256 hash of token as key for better security and uniqueness
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
         key = f"blacklist:token:{token_hash}"
         
         # Set with expiration (TTL)
         redis_client.setex(key, expires_in_seconds, "1")
-        return True
+        
+        # Verify it was set correctly
+        ttl = redis_client.ttl(key)
+        if ttl > 0:
+            logger.info(f"Token added to blacklist: {key[:16]}..., TTL: {ttl}s")
+            return True
+        else:
+            logger.warning(f"Token blacklist key was set but TTL is invalid: {ttl}")
+            return False
     except Exception as e:
-        print(f"Failed to add token to blacklist: {e}")
+        logger.error(f"Failed to add token to blacklist: {e}", exc_info=True)
         return False
 
 
@@ -104,17 +114,20 @@ def is_token_blacklisted(token: str) -> bool:
     redis_client = get_redis_client()
     if redis_client is None:
         # Redis not available, skip blacklist check (fallback mode)
+        # In production, you might want to fail closed instead
         return False
     
     try:
-        # Check if token is in blacklist
-        token_hash = token[:32] if len(token) > 32 else token
+        # Use SHA256 hash of token as key (same as in add_token_to_blacklist)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
         key = f"blacklist:token:{token_hash}"
         
         exists = redis_client.exists(key)
+        if exists > 0:
+            logger.debug(f"Token is blacklisted: {key[:16]}...")
         return exists > 0
     except Exception as e:
-        print(f"Failed to check token blacklist: {e}")
+        logger.error(f"Failed to check token blacklist: {e}", exc_info=True)
         # On error, allow token (fail open for availability)
         return False
 
@@ -142,8 +155,9 @@ def revoke_user_tokens(user_id: str) -> bool:
         redis_client.set(key, str(datetime.utcnow().timestamp()))
         # Set expiration to max token lifetime (30 days for refresh token)
         redis_client.expire(key, 30 * 24 * 60 * 60)
+        logger.info(f"Revoked all tokens for user: {user_id}")
         return True
     except Exception as e:
-        print(f"Failed to revoke user tokens: {e}")
+        logger.error(f"Failed to revoke user tokens: {e}", exc_info=True)
         return False
 

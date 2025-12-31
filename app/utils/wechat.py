@@ -1,6 +1,7 @@
 import httpx
 from typing import Optional, Dict, Any
 from app.config import settings
+from app.utils.logger import logger
 
 
 async def get_wechat_user_info(code: str) -> Optional[Dict[str, Any]]:
@@ -60,7 +61,6 @@ async def get_wechat_user_info(code: str) -> Optional[Dict[str, Any]]:
                 "unionid": user_data.get("unionid")
             }
     except Exception as e:
-        # Log error
-        print(f"WeChat OAuth error: {e}")
+        logger.error(f"WeChat OAuth error: {e}", exc_info=True)
         return None
 

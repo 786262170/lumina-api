@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, security
 from app.models.user import User
 from app.schemas.auth import (
     SendCodeRequest,
@@ -15,6 +15,8 @@ from app.schemas.common import SuccessResponse
 from app.services.auth_service import create_guest_user, login_with_phone, login_with_wechat
 from app.utils.sms import send_verification_code
 from app.utils.jwt import add_token_to_blacklist, revoke_user_tokens, verify_token
+from app.utils.logger import logger
+from jose import jwt, JWTError
 from app.exceptions import BadRequestException, TooManyRequestsException
 
 router = APIRouter()
@@ -80,7 +82,7 @@ async def guest_mode_endpoint(db: Session = Depends(get_db)):
 
 @router.post("/auth/logout", response_model=SuccessResponse)
 async def logout_endpoint(
-    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -90,17 +92,40 @@ async def logout_endpoint(
     """
     token = credentials.credentials
     
-    # Verify token to get expiration time
-    payload = verify_token(token)
-    if payload:
-        # Calculate remaining TTL
+    # Decode token to get expiration time for blacklist TTL
+    # We already verified the token in get_current_user, so we can safely decode it
+    try:
         from datetime import datetime
+        from app.config import settings
+        
+        # Decode token to get exp claim (we already verified it in get_current_user)
+        payload = jwt.decode(
+            token, 
+            settings.jwt_secret_key, 
+            algorithms=[settings.jwt_algorithm],
+            options={"verify_signature": True, "verify_exp": False}  # Skip exp verification, we'll calculate TTL
+        )
+        
+        # Calculate remaining TTL
         exp = payload.get("exp")
         if exp:
             current_time = datetime.utcnow().timestamp()
             expires_in = int(exp - current_time)
+            
             if expires_in > 0:
                 # Add token to blacklist with remaining TTL
-                add_token_to_blacklist(token, expires_in)
+                success = add_token_to_blacklist(token, expires_in)
+                if success:
+                    logger.info(f"Token blacklisted for user: {current_user.id}, expires in {expires_in}s")
+                else:
+                    logger.warning(f"Failed to blacklist token for user: {current_user.id}. Redis may not be available.")
+            else:
+                logger.debug(f"Token already expired (expired {abs(expires_in)}s ago), skipping blacklist")
+        else:
+            logger.warning("Token has no expiration claim, cannot add to blacklist")
+    except JWTError as e:
+        logger.error(f"Failed to decode token during logout: {e}", exc_info=True)
+    except Exception as e:
+        logger.error(f"Unexpected error during logout: {e}", exc_info=True)
     
     return SuccessResponse(success=True, message="登出成功")

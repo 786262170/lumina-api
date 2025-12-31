@@ -12,11 +12,47 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Lumina AI API",
-    description="Lumina AI 图片处理应用后端API文档",
+    description="Lumina AI 图片处理应用后端API文档\n\n认证方式：使用Bearer Token认证，在Header中添加 `Authorization: Bearer {token}`",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+def custom_openapi():
+    """自定义 OpenAPI schema，添加 Bearer 认证配置"""
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    from fastapi.openapi.utils import get_openapi
+    
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    
+    # 确保 components 存在
+    if "components" not in openapi_schema:
+        openapi_schema["components"] = {}
+    
+    # 添加或更新 security schemes
+    if "securitySchemes" not in openapi_schema["components"]:
+        openapi_schema["components"]["securitySchemes"] = {}
+    
+    openapi_schema["components"]["securitySchemes"]["bearerAuth"] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "使用JWT Token进行认证，格式：Bearer {token}"
+    }
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 # CORS middleware
 app.add_middleware(

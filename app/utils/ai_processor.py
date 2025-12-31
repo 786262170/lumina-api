@@ -2,6 +2,7 @@ import httpx
 from typing import Dict, Any, Optional, List
 from app.config import settings
 from app.schemas.image import ImageOperation
+from app.utils.logger import logger
 
 
 async def process_image(
@@ -50,9 +51,9 @@ async def process_image(
             if response.status_code == 200:
                 return response.json()
             else:
-                print(f"AI service error: {response.status_code} - {response.text}")
+                logger.error(f"AI service error: {response.status_code} - {response.text}")
                 return None
     except Exception as e:
-        print(f"AI processing error: {e}")
+        logger.error(f"AI processing error: {e}", exc_info=True)
         return None
 

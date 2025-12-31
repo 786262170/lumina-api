@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 from PIL import Image
 import io
 from app.config import settings
+from app.utils.logger import logger
 
 
 class StorageService:
@@ -30,9 +31,10 @@ class StorageService:
         try:
             self.bucket.put_object(file_path, file_content, headers={"Content-Type": content_type})
             url = f"https://{settings.oss_bucket_name}.{settings.oss_endpoint}/{file_path}"
+            logger.debug(f"File uploaded to OSS: {file_path}")
             return url
         except Exception as e:
-            print(f"OSS upload error: {e}")
+            logger.error(f"OSS upload error: {e}", exc_info=True)
             raise
     
     def generate_thumbnail(
@@ -51,7 +53,7 @@ class StorageService:
             img.save(output, format="JPEG", quality=85)
             return output.getvalue()
         except Exception as e:
-            print(f"Thumbnail generation error: {e}")
+            logger.warning(f"Thumbnail generation error: {e}, returning original image")
             return image_content
     
     def get_signed_url(self, file_path: str, expires: int = 3600) -> str:
@@ -65,7 +67,7 @@ class StorageService:
             url = self.bucket.sign_url('GET', file_path, expires)
             return url
         except Exception as e:
-            print(f"OSS signed URL error: {e}")
+            logger.error(f"OSS signed URL error: {e}", exc_info=True)
             return f"https://cdn.lumina.ai/{file_path}"
 
 
