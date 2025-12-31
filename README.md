@@ -16,8 +16,10 @@ Lumina AI 图片处理应用后端API，基于 FastAPI 实现。
 - Python 3.9+
 - FastAPI
 - SQLAlchemy (MySQL)
-- 阿里云 OSS
+- Redis (Token 黑名单、缓存)
+- 阿里云 OSS (可选，支持本地存储 mock 模式)
 - JWT 认证
+- LiteLLM (统一大模型 SDK，支持 OpenAI、GLM、Azure 等)
 
 ## 快速开始
 
@@ -27,7 +29,94 @@ Lumina AI 图片处理应用后端API，基于 FastAPI 实现。
 pip install -r requirements.txt
 ```
 
-### 2. 配置环境变量
+### 2. 启动 MySQL 服务
+
+#### macOS (使用 Homebrew)
+
+```bash
+# 启动 MySQL 服务
+brew services start mysql
+
+# 或者手动启动
+mysql.server start
+
+# 检查服务状态
+brew services list | grep mysql
+```
+
+#### Linux
+
+```bash
+# Ubuntu/Debian
+sudo systemctl start mysql
+# 或
+sudo service mysql start
+
+# 检查状态
+sudo systemctl status mysql
+```
+
+#### 创建数据库和用户
+
+```bash
+# 登录 MySQL
+mysql -u root -p
+
+# 创建数据库
+CREATE DATABASE lumina_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+# 创建用户（可选，也可以使用 root）
+CREATE USER 'lumina_user'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON lumina_db.* TO 'lumina_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+### 3. 启动 Redis 服务
+
+#### macOS (使用 Homebrew)
+
+```bash
+# 启动 Redis 服务
+brew services start redis
+
+# 或者手动启动
+redis-server
+
+# 检查服务状态
+redis-cli ping
+# 应该返回: PONG
+```
+
+#### Linux
+
+```bash
+# Ubuntu/Debian
+sudo systemctl start redis
+# 或
+sudo service redis start
+
+# 检查状态
+redis-cli ping
+```
+
+#### 配置 Redis 密码（可选）
+
+```bash
+# 编辑 Redis 配置文件
+# macOS: /opt/homebrew/etc/redis.conf
+# Linux: /etc/redis/redis.conf
+
+# 找到并修改 requirepass 行
+requirepass your_redis_password
+
+# 重启 Redis 服务
+brew services restart redis  # macOS
+# 或
+sudo systemctl restart redis  # Linux
+```
+
+### 4. 配置环境变量
 
 复制 `.env.example` 为 `.env` 并填写配置：
 
@@ -35,7 +124,22 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-### 3. 初始化数据库
+**重要配置项：**
+
+```bash
+# 数据库配置
+DATABASE_URL=mysql+pymysql://lumina_user:your_password@localhost:3306/lumina_db
+
+# Redis 配置（如果设置了密码）
+REDIS_URL=redis://:your_redis_password@localhost:6379/0
+REDIS_ENABLED=true
+
+# 或者无密码
+REDIS_URL=redis://localhost:6379/0
+REDIS_ENABLED=true
+```
+
+### 5. 初始化数据库
 
 ```bash
 # 创建数据库迁移
@@ -45,13 +149,13 @@ alembic revision --autogenerate -m "Initial migration"
 alembic upgrade head
 ```
 
-### 4. 运行服务
+### 6. 运行服务
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 5. 访问文档
+### 7. 访问文档
 
 服务启动后，可以通过以下地址访问 API 文档：
 
