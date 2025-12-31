@@ -1,0 +1,2190 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Lumina AI API",
+    "description": "Lumina AI 图片处理应用后端API文档\n\n本API提供以下核心功能：\n- 用户认证与授权\n- AI问答与推荐\n- 图片上传与处理（单图/批量）\n- 作品管理\n- 订阅与支付\n- 场景配置管理\n\n认证方式：使用Bearer Token认证，在Header中添加 `Authorization: Bearer {token}`",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Lumina AI API Support",
+      "email": "api-support@lumina.ai"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.lumina.ai/v1",
+      "description": "生产环境"
+    },
+    {
+      "url": "https://api-staging.lumina.ai/v1",
+      "description": "测试环境"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "用户认证相关接口"
+    },
+    {
+      "name": "User",
+      "description": "用户信息管理"
+    },
+    {
+      "name": "AI",
+      "description": "AI问答与推荐"
+    },
+    {
+      "name": "Images",
+      "description": "图片上传与处理"
+    },
+    {
+      "name": "Works",
+      "description": "作品管理"
+    },
+    {
+      "name": "Subscription",
+      "description": "订阅与支付"
+    },
+    {
+      "name": "Scenes",
+      "description": "场景配置管理"
+    },
+    {
+      "name": "Settings",
+      "description": "应用设置"
+    }
+  ],
+  "paths": {
+    "/auth/send-code": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "发送验证码",
+        "description": "向指定手机号发送登录验证码",
+        "operationId": "sendVerificationCode",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "验证码发送成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendCodeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "description": "请求过于频繁，请稍后再试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "手机号登录",
+        "description": "使用手机号和验证码登录",
+        "operationId": "login",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/auth/wechat-login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "微信登录",
+        "description": "使用微信授权码登录",
+        "operationId": "wechatLogin",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeChatLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/auth/guest": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "游客模式",
+        "description": "创建临时游客账号",
+        "operationId": "guestMode",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "游客账号创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "登出",
+        "description": "退出登录，清除token",
+        "operationId": "logout",
+        "responses": {
+          "200": {
+            "description": "登出成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/user/profile": {
+      "get": {
+        "tags": ["User"],
+        "summary": "获取用户信息",
+        "description": "获取当前登录用户的详细信息",
+        "operationId": "getUserProfile",
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": ["User"],
+        "summary": "更新用户信息",
+        "description": "更新当前用户的基本信息",
+        "operationId": "updateUserProfile",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/user/stats": {
+      "get": {
+        "tags": ["User"],
+        "summary": "获取用户统计信息",
+        "description": "获取用户的处理统计、剩余配额等信息",
+        "operationId": "getUserStats",
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserStats"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/quiz": {
+      "post": {
+        "tags": ["AI"],
+        "summary": "提交AI问答答案",
+        "description": "提交用户完成的AI问答答案，用于生成个性化推荐",
+        "operationId": "submitQuizAnswers",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuizSubmissionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "提交成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizSubmissionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/recommendations": {
+      "get": {
+        "tags": ["AI"],
+        "summary": "获取AI推荐",
+        "description": "基于用户问答结果获取个性化推荐场景和功能",
+        "operationId": "getRecommendations",
+        "parameters": [
+          {
+            "name": "quizSessionId",
+            "in": "query",
+            "description": "问答会话ID（如果提供则基于问答结果，否则基于用户历史）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/images/upload": {
+      "post": {
+        "tags": ["Images"],
+        "summary": "上传图片",
+        "description": "上传单张或多张图片，返回图片ID和URL",
+        "operationId": "uploadImages",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["files"],
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "图片文件（支持JPG, PNG, WebP，单次最多100张）"
+                  },
+                  "sceneType": {
+                    "type": "string",
+                    "enum": ["taobao", "douyin", "xiaohongshu", "amazon", "custom"],
+                    "description": "场景类型（可选）"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "上传成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "description": "文件过大",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/images/process": {
+      "post": {
+        "tags": ["Images"],
+        "summary": "处理单张图片",
+        "description": "对单张图片进行AI处理（抠图、背景替换、光效等）",
+        "operationId": "processImage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcessImageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "处理任务已创建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessTaskResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/images/batch-process": {
+      "post": {
+        "tags": ["Images"],
+        "summary": "批量处理图片",
+        "description": "批量处理多张图片，使用相同的处理参数",
+        "operationId": "batchProcessImages",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchProcessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "批量处理任务已创建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchProcessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/images/process/{taskId}/status": {
+      "get": {
+        "tags": ["Images"],
+        "summary": "获取处理进度",
+        "description": "查询图片处理任务的状态和进度",
+        "operationId": "getProcessStatus",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "description": "处理任务ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/images/process/{taskId}/result": {
+      "get": {
+        "tags": ["Images"],
+        "summary": "获取处理结果",
+        "description": "获取处理完成后的结果图片URL",
+        "operationId": "getProcessResult",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "description": "处理任务ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessResultResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/images/{imageId}/download": {
+      "get": {
+        "tags": ["Images"],
+        "summary": "下载图片",
+        "description": "下载处理后的图片（支持不同质量等级）",
+        "operationId": "downloadImage",
+        "parameters": [
+          {
+            "name": "imageId",
+            "in": "path",
+            "required": true,
+            "description": "图片ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "quality",
+            "in": "query",
+            "description": "图片质量（60-100，默认85）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 60,
+              "maximum": 100,
+              "default": 85
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "description": "图片格式（jpg, png, webp，默认jpg）",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["jpg", "png", "webp"],
+              "default": "jpg"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "下载成功",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/works": {
+      "get": {
+        "tags": ["Works"],
+        "summary": "获取作品列表",
+        "description": "获取用户的所有作品，支持分页和筛选",
+        "operationId": "getWorks",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "页码（从1开始）",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "每页数量",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "筛选分类",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["all", "taobao", "douyin", "xiaohongshu", "amazon", "custom"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorksListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Works"],
+        "summary": "保存作品",
+        "description": "将处理后的图片保存为作品",
+        "operationId": "saveWork",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveWorkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "保存成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Work"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/works/{workId}": {
+      "get": {
+        "tags": ["Works"],
+        "summary": "获取作品详情",
+        "description": "获取指定作品的详细信息",
+        "operationId": "getWorkDetail",
+        "parameters": [
+          {
+            "name": "workId",
+            "in": "path",
+            "required": true,
+            "description": "作品ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Works"],
+        "summary": "删除作品",
+        "description": "删除指定的作品",
+        "operationId": "deleteWork",
+        "parameters": [
+          {
+            "name": "workId",
+            "in": "path",
+            "required": true,
+            "description": "作品ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/works/batch-delete": {
+      "post": {
+        "tags": ["Works"],
+        "summary": "批量删除作品",
+        "description": "批量删除多个作品",
+        "operationId": "batchDeleteWorks",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchDeleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/subscription/plans": {
+      "get": {
+        "tags": ["Subscription"],
+        "summary": "获取订阅计划",
+        "description": "获取所有可用的订阅计划列表",
+        "operationId": "getSubscriptionPlans",
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionPlansResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/subscription/current": {
+      "get": {
+        "tags": ["Subscription"],
+        "summary": "获取当前订阅",
+        "description": "获取当前用户的订阅信息",
+        "operationId": "getCurrentSubscription",
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "用户未订阅",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/subscription/create-order": {
+      "post": {
+        "tags": ["Subscription"],
+        "summary": "创建订阅订单",
+        "description": "创建订阅订单并返回支付信息",
+        "operationId": "createSubscriptionOrder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "订单创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/subscription/payment-callback": {
+      "post": {
+        "tags": ["Subscription"],
+        "summary": "支付回调",
+        "description": "支付平台回调接口（微信支付/支付宝）",
+        "operationId": "paymentCallback",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentCallbackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "回调处理成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scenes": {
+      "get": {
+        "tags": ["Scenes"],
+        "summary": "获取场景列表",
+        "description": "获取所有可用的场景配置",
+        "operationId": "getScenes",
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scenes/{sceneType}": {
+      "get": {
+        "tags": ["Scenes"],
+        "summary": "获取场景详情",
+        "description": "获取指定场景的详细配置信息",
+        "operationId": "getSceneDetail",
+        "parameters": [
+          {
+            "name": "sceneType",
+            "in": "path",
+            "required": true,
+            "description": "场景类型",
+            "schema": {
+              "type": "string",
+              "enum": ["taobao", "douyin", "xiaohongshu", "amazon", "custom"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/settings": {
+      "get": {
+        "tags": ["Settings"],
+        "summary": "获取应用设置",
+        "description": "获取用户的应用设置（通知、自动保存等）",
+        "operationId": "getSettings",
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Settings"],
+        "summary": "更新应用设置",
+        "description": "更新用户的应用设置",
+        "operationId": "updateSettings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "使用JWT Token进行认证，格式：Bearer {token}"
+      }
+    },
+    "schemas": {
+      "SendCodeRequest": {
+        "type": "object",
+        "required": ["phoneNumber"],
+        "properties": {
+          "phoneNumber": {
+            "type": "string",
+            "pattern": "^1[3-9]\\d{9}$",
+            "description": "手机号码（11位，以1开头）",
+            "example": "13812345678"
+          }
+        }
+      },
+      "SendCodeResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "验证码已发送"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "验证码有效期（秒）",
+            "example": 300
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["phoneNumber", "verificationCode"],
+        "properties": {
+          "phoneNumber": {
+            "type": "string",
+            "pattern": "^1[3-9]\\d{9}$",
+            "description": "手机号码",
+            "example": "13812345678"
+          },
+          "verificationCode": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "6位验证码",
+            "example": "123456"
+          }
+        }
+      },
+      "WeChatLoginRequest": {
+        "type": "object",
+        "required": ["code"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "微信授权码",
+            "example": "081abc123def456"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT认证令牌",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "刷新令牌",
+            "example": "refresh_token_here"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserProfile"
+          },
+          "isNewUser": {
+            "type": "boolean",
+            "description": "是否为新用户",
+            "example": true
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "Token过期时间（秒）",
+            "example": 7200
+          }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "user_123456"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "example": "138****5678"
+          },
+          "nickname": {
+            "type": "string",
+            "example": "创作者"
+          },
+          "avatar": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "example": "https://cdn.lumina.ai/avatars/user_123456.jpg"
+          },
+          "isPro": {
+            "type": "boolean",
+            "description": "是否为专业版会员",
+            "example": true
+          },
+          "membershipType": {
+            "type": "string",
+            "enum": ["free", "monthly", "annual", "enterprise"],
+            "example": "annual"
+          },
+          "membershipExpiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2025-01-28T00:00:00Z"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-01-01T00:00:00Z"
+          }
+        }
+      },
+      "UpdateUserProfileRequest": {
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "example": "新昵称"
+          },
+          "avatar": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://cdn.lumina.ai/avatars/new_avatar.jpg"
+          }
+        }
+      },
+      "UserStats": {
+        "type": "object",
+        "properties": {
+          "processedCount": {
+            "type": "integer",
+            "description": "已处理图片数量",
+            "example": 1234
+          },
+          "remainingQuota": {
+            "type": "integer",
+            "description": "剩余配额（-1表示无限）",
+            "example": 58
+          },
+          "dailyQuota": {
+            "type": "integer",
+            "description": "每日配额（-1表示无限）",
+            "example": -1
+          },
+          "membershipDaysLeft": {
+            "type": "integer",
+            "nullable": true,
+            "description": "会员剩余天数",
+            "example": 28
+          },
+          "storageUsed": {
+            "type": "number",
+            "description": "已使用存储空间（GB）",
+            "example": 2.3
+          },
+          "storageTotal": {
+            "type": "number",
+            "description": "总存储空间（GB，-1表示无限）",
+            "example": 5.0
+          }
+        }
+      },
+      "QuizSubmissionRequest": {
+        "type": "object",
+        "required": ["answers"],
+        "properties": {
+          "answers": {
+            "type": "object",
+            "description": "问答答案，key为问题序号（1-based），value为选项ID",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "1": "clothing",
+              "2": "taobao",
+              "3": "minimal"
+            }
+          }
+        }
+      },
+      "QuizSubmissionResponse": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "问答会话ID",
+            "example": "quiz_session_abc123"
+          },
+          "message": {
+            "type": "string",
+            "example": "提交成功"
+          }
+        }
+      },
+      "RecommendationsResponse": {
+        "type": "object",
+        "properties": {
+          "primaryRecommendation": {
+            "$ref": "#/components/schemas/Recommendation"
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Recommendation"
+            }
+          },
+          "recommendedFeatures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Feature"
+            }
+          }
+        }
+      },
+      "Recommendation": {
+        "type": "object",
+        "properties": {
+          "sceneType": {
+            "type": "string",
+            "enum": ["taobao", "douyin", "xiaohongshu", "amazon", "custom"],
+            "example": "taobao"
+          },
+          "sceneName": {
+            "type": "string",
+            "example": "电商主图"
+          },
+          "matchPercentage": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 98
+          },
+          "previewImage": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "example": "https://cdn.lumina.ai/previews/taobao.jpg"
+          },
+          "description": {
+            "type": "string",
+            "example": "基于您的选择，这个场景最适合您的需求"
+          }
+        }
+      },
+      "Feature": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "smart_cutout"
+          },
+          "name": {
+            "type": "string",
+            "example": "智能抠图"
+          },
+          "description": {
+            "type": "string",
+            "example": "AI精准识别主体，一键移除背景"
+          },
+          "icon": {
+            "type": "string",
+            "example": "sparkles"
+          }
+        }
+      },
+      "UploadResponse": {
+        "type": "object",
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UploadedImage"
+            }
+          }
+        }
+      },
+      "UploadedImage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "img_abc123"
+          },
+          "filename": {
+            "type": "string",
+            "example": "IMG_2024.jpg"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://cdn.lumina.ai/uploads/img_abc123.jpg"
+          },
+          "thumbnail": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://cdn.lumina.ai/uploads/thumb_img_abc123.jpg"
+          },
+          "width": {
+            "type": "integer",
+            "example": 1920
+          },
+          "height": {
+            "type": "integer",
+            "example": 1080
+          },
+          "size": {
+            "type": "integer",
+            "description": "文件大小（字节）",
+            "example": 2048000
+          },
+          "format": {
+            "type": "string",
+            "enum": ["jpg", "png", "webp"],
+            "example": "jpg"
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-01-15T10:30:00Z"
+          }
+        }
+      },
+      "ProcessImageRequest": {
+        "type": "object",
+        "required": ["imageId", "operations"],
+        "properties": {
+          "imageId": {
+            "type": "string",
+            "description": "要处理的图片ID",
+            "example": "img_abc123"
+          },
+          "operations": {
+            "type": "array",
+            "description": "处理操作列表",
+            "items": {
+              "$ref": "#/components/schemas/ImageOperation"
+            }
+          },
+          "outputSize": {
+            "type": "string",
+            "pattern": "^\\d+x\\d+$",
+            "description": "输出尺寸（如：2000x2000）",
+            "example": "2000x2000"
+          },
+          "quality": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 100,
+            "default": 85,
+            "description": "输出质量（60-100）",
+            "example": 85
+          },
+          "edgeSmoothing": {
+            "type": "boolean",
+            "default": true,
+            "description": "是否启用边缘平滑",
+            "example": true
+          },
+          "sceneType": {
+            "type": "string",
+            "enum": ["taobao", "douyin", "xiaohongshu", "amazon", "custom"],
+            "description": "场景类型",
+            "example": "taobao"
+          }
+        }
+      },
+      "ImageOperation": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["cutout", "background", "lighting", "filter", "resize"],
+            "description": "操作类型"
+          },
+          "params": {
+            "type": "object",
+            "description": "操作参数（根据type不同而不同）",
+            "additionalProperties": true,
+            "example": {
+              "backgroundColor": "#FFFFFF",
+              "backgroundTemplateId": "white",
+              "brightness": 1.2,
+              "contrast": 1.1
+            }
+          }
+        }
+      },
+      "ProcessTaskResponse": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "description": "处理任务ID",
+            "example": "task_xyz789"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "completed", "failed"],
+            "example": "pending"
+          },
+          "estimatedTime": {
+            "type": "integer",
+            "description": "预计处理时间（秒）",
+            "example": 5
+          }
+        }
+      },
+      "BatchProcessRequest": {
+        "type": "object",
+        "required": ["imageIds", "operations"],
+        "properties": {
+          "imageIds": {
+            "type": "array",
+            "description": "要处理的图片ID列表（最多100张）",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "example": ["img_abc123", "img_def456"]
+          },
+          "operations": {
+            "type": "array",
+            "description": "处理操作列表（应用到所有图片）",
+            "items": {
+              "$ref": "#/components/schemas/ImageOperation"
+            }
+          },
+          "outputSize": {
+            "type": "string",
+            "pattern": "^\\d+x\\d+$",
+            "example": "2000x2000"
+          },
+          "quality": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 100,
+            "default": 85,
+            "example": 85
+          },
+          "edgeSmoothing": {
+            "type": "boolean",
+            "default": true,
+            "example": true
+          },
+          "sceneType": {
+            "type": "string",
+            "enum": ["taobao", "douyin", "xiaohongshu", "amazon", "custom"],
+            "example": "taobao"
+          }
+        }
+      },
+      "BatchProcessResponse": {
+        "type": "object",
+        "properties": {
+          "batchTaskId": {
+            "type": "string",
+            "description": "批量处理任务ID",
+            "example": "batch_task_abc123"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProcessTaskResponse"
+            }
+          },
+          "totalCount": {
+            "type": "integer",
+            "example": 2
+          }
+        }
+      },
+      "ProcessStatusResponse": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "example": "task_xyz789"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "completed", "failed"],
+            "example": "processing"
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "处理进度（0-100）",
+            "example": 65
+          },
+          "message": {
+            "type": "string",
+            "nullable": true,
+            "description": "状态消息",
+            "example": "正在处理中..."
+          },
+          "estimatedTimeRemaining": {
+            "type": "integer",
+            "nullable": true,
+            "description": "预计剩余时间（秒）",
+            "example": 2
+          }
+        }
+      },
+      "ProcessResultResponse": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "example": "task_xyz789"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed", "failed"],
+            "example": "completed"
+          },
+          "resultImage": {
+            "$ref": "#/components/schemas/ProcessedImage"
+          },
+          "processingTime": {
+            "type": "number",
+            "description": "处理耗时（秒）",
+            "example": 3.2
+          },
+          "beforeImage": {
+            "$ref": "#/components/schemas/UploadedImage"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true,
+            "description": "错误信息（如果失败）",
+            "example": null
+          }
+        }
+      },
+      "ProcessedImage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "processed_img_xyz789"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://cdn.lumina.ai/processed/processed_img_xyz789.jpg"
+          },
+          "thumbnail": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://cdn.lumina.ai/processed/thumb_processed_img_xyz789.jpg"
+          },
+          "width": {
+            "type": "integer",
+            "example": 2000
+          },
+          "height": {
+            "type": "integer",
+            "example": 2000
+          },
+          "size": {
+            "type": "integer",
+            "description": "文件大小（字节）",
+            "example": 1536000
+          },
+          "format": {
+            "type": "string",
+            "enum": ["jpg", "png", "webp"],
+            "example": "jpg"
+          },
+          "operations": {
+            "type": "array",
+            "description": "应用的处理操作",
+            "items": {
+              "$ref": "#/components/schemas/ImageOperation"
+            }
+          }
+        }
+      },
+      "SaveWorkRequest": {
+        "type": "object",
+        "required": ["processedImageId", "filename"],
+        "properties": {
+          "processedImageId": {
+            "type": "string",
+            "description": "处理后的图片ID",
+            "example": "processed_img_xyz789"
+          },
+          "filename": {
+            "type": "string",
+            "description": "作品文件名",
+            "example": "IMG_2024_processed.jpg"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["taobao", "douyin", "xiaohongshu", "amazon", "custom"],
+            "description": "作品分类",
+            "example": "taobao"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "标签",
+            "example": ["产品图", "白底图"]
+          }
+        }
+      },
+      "Work": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "work_123456"
+          },
+          "filename": {
+            "type": "string",
+            "example": "IMG_2024_processed.jpg"
+          },
+          "thumbnail": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://cdn.lumina.ai/works/thumb_work_123456.jpg"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["taobao", "douyin", "xiaohongshu", "amazon", "custom"],
+            "example": "taobao"
+          },
+          "size": {
+            "type": "integer",
+            "description": "文件大小（字节）",
+            "example": 1536000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-01-15T10:30:00Z"
+          }
+        }
+      },
+      "WorkDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Work"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "imageUrl": {
+                "type": "string",
+                "format": "uri",
+                "example": "https://cdn.lumina.ai/works/work_123456.jpg"
+              },
+              "beforeImage": {
+                "$ref": "#/components/schemas/UploadedImage"
+              },
+              "afterImage": {
+                "$ref": "#/components/schemas/ProcessedImage"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "example": ["产品图", "白底图"]
+              },
+              "operations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImageOperation"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "WorksListResponse": {
+        "type": "object",
+        "properties": {
+          "works": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Work"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "totalStorage": {
+            "type": "number",
+            "description": "总存储使用量（字节）",
+            "example": 2457600000
+          }
+        }
+      },
+      "BatchDeleteRequest": {
+        "type": "object",
+        "required": ["workIds"],
+        "properties": {
+          "workIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "example": ["work_123456", "work_789012"]
+          }
+        }
+      },
+      "SubscriptionPlansResponse": {
+        "type": "object",
+        "properties": {
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionPlan"
+            }
+          }
+        }
+      },
+      "SubscriptionPlan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": ["monthly", "annual"],
+            "example": "annual"
+          },
+          "name": {
+            "type": "string",
+            "example": "年度会员"
+          },
+          "price": {
+            "type": "number",
+            "description": "价格（元）",
+            "example": 299
+          },
+          "period": {
+            "type": "string",
+            "example": "/年"
+          },
+          "periodSubtext": {
+            "type": "string",
+            "nullable": true,
+            "example": "(平均¥25/月)"
+          },
+          "badge": {
+            "$ref": "#/components/schemas/PlanBadge"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["每日无限使用", "极速处理", "高清导出"]
+          },
+          "highlighted": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "PlanBadge": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "example": "省30%"
+          },
+          "color": {
+            "type": "string",
+            "enum": ["primary", "accent"],
+            "example": "primary"
+          }
+        }
+      },
+      "CurrentSubscriptionResponse": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "example": "annual"
+          },
+          "planName": {
+            "type": "string",
+            "example": "年度会员"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-01-01T00:00:00Z"
+          },
+          "expiryDate": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-01-01T00:00:00Z"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "autoRenew": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "CreateOrderRequest": {
+        "type": "object",
+        "required": ["planId"],
+        "properties": {
+          "planId": {
+            "type": "string",
+            "enum": ["monthly", "annual"],
+            "example": "annual"
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": ["wechat", "alipay"],
+            "default": "wechat",
+            "example": "wechat"
+          }
+        }
+      },
+      "OrderResponse": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "example": "order_abc123"
+          },
+          "amount": {
+            "type": "number",
+            "description": "订单金额（元）",
+            "example": 299
+          },
+          "paymentInfo": {
+            "type": "object",
+            "description": "支付信息（根据支付方式不同）",
+            "additionalProperties": true,
+            "example": {
+              "qrCode": "https://api.lumina.ai/payment/qr/order_abc123",
+              "paymentUrl": "weixin://wxpay/bizpayurl?pr=xxx"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "订单过期时间",
+            "example": "2024-01-15T11:00:00Z"
+          }
+        }
+      },
+      "PaymentCallbackRequest": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "example": "order_abc123"
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": ["wechat", "alipay"],
+            "example": "wechat"
+          },
+          "transactionId": {
+            "type": "string",
+            "example": "wx_transaction_123456"
+          },
+          "amount": {
+            "type": "number",
+            "example": 299
+          },
+          "signature": {
+            "type": "string",
+            "description": "支付平台签名",
+            "example": "signature_string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "example": 1705315200
+          }
+        }
+      },
+      "SceneDetail": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["taobao", "douyin", "xiaohongshu", "amazon", "custom"],
+            "example": "taobao"
+          },
+          "title": {
+            "type": "string",
+            "example": "淘宝白底图"
+          },
+          "description": {
+            "type": "string",
+            "example": "自动生成纯白背景，符合淘宝平台规格"
+          },
+          "presetSizes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^\\d+x\\d+$"
+            },
+            "example": ["2000x2000", "1600x1600", "1000x1000"]
+          },
+          "defaultOperations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageOperation"
+            },
+            "description": "场景默认处理操作"
+          }
+        }
+      },
+      "ScenesResponse": {
+        "type": "object",
+        "properties": {
+          "scenes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SceneDetail"
+            }
+          }
+        }
+      },
+      "AppSettings": {
+        "type": "object",
+        "properties": {
+          "notifications": {
+            "type": "boolean",
+            "description": "是否启用通知",
+            "example": true
+          },
+          "autoSave": {
+            "type": "boolean",
+            "description": "是否自动保存",
+            "example": true
+          },
+          "defaultQuality": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 100,
+            "description": "默认图片质量",
+            "example": 85
+          },
+          "defaultFormat": {
+            "type": "string",
+            "enum": ["jpg", "png", "webp"],
+            "description": "默认图片格式",
+            "example": "jpg"
+          }
+        }
+      },
+      "UpdateSettingsRequest": {
+        "type": "object",
+        "properties": {
+          "notifications": {
+            "type": "boolean"
+          },
+          "autoSave": {
+            "type": "boolean"
+          },
+          "defaultQuality": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 100
+          },
+          "defaultFormat": {
+            "type": "string",
+            "enum": ["jpg", "png", "webp"]
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "example": 100
+          },
+          "totalPages": {
+            "type": "integer",
+            "example": 5
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "操作成功"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "INVALID_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "请求参数错误"
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "错误详情"
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "请求参数错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "未授权，需要登录",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  }
+}
