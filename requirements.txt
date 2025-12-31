@@ -15,6 +15,9 @@ httpx==0.25.2
 python-dotenv==1.0.0
 redis==5.0.1
 
+# AI Services - Unified LLM SDK
+litellm==1.40.0  # Unified SDK for multiple LLM providers (OpenAI, GLM, Claude, etc.)
+
 # Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1

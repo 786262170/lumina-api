@@ -1,7 +1,7 @@
 import uuid
 import os
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from PIL import Image as PILImage
@@ -20,6 +20,7 @@ from app.schemas.image import (
 from app.services.storage_service import storage_service
 from app.utils.ai_processor import process_image
 from app.exceptions import NotFoundException, BadRequestException
+from app.utils.logger import logger
 from fastapi import BackgroundTasks
 
 
@@ -31,6 +32,42 @@ def generate_image_id() -> str:
 def generate_task_id() -> str:
     """Generate unique task ID"""
     return f"task_{uuid.uuid4().hex[:12]}"
+
+
+# Image format mapping: PIL format -> (ImageFormat enum, file extension)
+IMAGE_FORMAT_MAP: Dict[str, Tuple[ImageFormat, str]] = {
+    "jpeg": (ImageFormat.JPG, "jpg"),
+    "jpg": (ImageFormat.JPG, "jpg"),
+    "png": (ImageFormat.PNG, "png"),
+    "webp": (ImageFormat.WEBP, "webp"),
+}
+
+# Content type to format mapping
+CONTENT_TYPE_FORMAT_MAP: Dict[str, Tuple[ImageFormat, str]] = {
+    "image/jpeg": (ImageFormat.JPG, "jpg"),
+    "image/png": (ImageFormat.PNG, "png"),
+    "image/webp": (ImageFormat.WEBP, "webp"),
+}
+
+
+def detect_image_format(img: PILImage.Image, content_type: str) -> Tuple[ImageFormat, str]:
+    """
+    Detect image format from PIL Image and content type
+    Returns: (ImageFormat enum, file extension)
+    """
+    # Try to detect from PIL image format first (most accurate)
+    if img.format:
+        img_format_str = img.format.lower()
+        if img_format_str in IMAGE_FORMAT_MAP:
+            return IMAGE_FORMAT_MAP[img_format_str]
+    
+    # Fallback to content type
+    if content_type in CONTENT_TYPE_FORMAT_MAP:
+        return CONTENT_TYPE_FORMAT_MAP[content_type]
+    
+    # Default to JPG if unknown
+    logger.warning(f"Unknown image format, defaulting to JPG. PIL format: {img.format}, Content type: {content_type}")
+    return (ImageFormat.JPG, "jpg")
 
 
 async def upload_images(
@@ -52,30 +89,29 @@ async def upload_images(
         
         # Read file content
         content = await file.read()
+        file_size = len(content)
         
-        # Get image dimensions
-        img = PILImage.open(io.BytesIO(content))
+        # Get image dimensions and verify format
+        img_buffer = io.BytesIO(content)
+        img = PILImage.open(img_buffer)
         width, height = img.size
         
-        # Determine format
-        if file.content_type == "image/jpeg":
-            img_format = ImageFormat.JPG
-        elif file.content_type == "image/png":
-            img_format = ImageFormat.PNG
-        else:
-            img_format = ImageFormat.WEBP
+        # Detect image format
+        img_format, file_ext = detect_image_format(img, file.content_type)
         
-        # Generate file path
+        # Log image info for verification
+        logger.debug(f"Image info - Size: {file_size} bytes, Dimensions: {width}x{height}, Format: {img_format.value}, Extension: {file_ext}")
+        
+        # Generate file path (without storage root prefix, storage_service will add it)
         image_id = generate_image_id()
-        file_ext = img_format.value
-        file_path = f"uploads/{user.id}/{image_id}.{file_ext}"
+        file_path = f"{user.id}/{image_id}.{file_ext}"
         
         # Upload to OSS
         url = storage_service.upload_file(content, file_path, file.content_type)
         
         # Generate thumbnail
         thumbnail_content = storage_service.generate_thumbnail(content)
-        thumbnail_path = f"uploads/{user.id}/thumb_{image_id}.{file_ext}"
+        thumbnail_path = f"{user.id}/thumb_{image_id}.{file_ext}"
         thumbnail_url = storage_service.upload_file(thumbnail_content, thumbnail_path, file.content_type)
         
         # Save to database
@@ -87,7 +123,7 @@ async def upload_images(
             thumbnail=thumbnail_url,
             width=width,
             height=height,
-            size=len(content),
+            size=file_size,
             format=img_format,
             uploaded_at=datetime.utcnow()
         )

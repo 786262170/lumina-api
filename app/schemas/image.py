@@ -141,3 +141,27 @@ class ProcessResultResponse(BaseModel):
     beforeImage: UploadedImage
     error: Optional[str] = Field(None, description="错误信息（如果失败）")
 
+
+class ImageAnalysisRequest(BaseModel):
+    imageId: str = Field(..., description="要分析的图片ID", example="img_abc123")
+    prompt: Optional[str] = Field(
+        None,
+        description="自定义分析提示词（可选）",
+        example="请分析这张图片的风格和质量"
+    )
+    maxTokens: int = Field(1000, ge=100, le=4000, description="最大token数", example=1000)
+
+
+class ImageAnalysisResponse(BaseModel):
+    imageId: str = Field(..., example="img_abc123")
+    description: str = Field(..., description="图片描述", example="这是一张高质量的产品图片")
+    tags: List[str] = Field(..., description="标签列表", example=["产品", "商业", "高质量"])
+    mainSubject: str = Field(..., description="主要主体", example="产品主体")
+    style: str = Field(..., description="风格", example="专业摄影")
+    qualityScore: float = Field(..., ge=0.0, le=1.0, description="质量评分（0-1）", example=0.95)
+    suggestions: List[str] = Field(
+        default_factory=list,
+        description="改进建议",
+        example=["建议优化背景以突出主体", "可以调整光线以增强视觉效果"]
+    )
+

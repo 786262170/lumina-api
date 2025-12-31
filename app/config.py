@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     oss_bucket_name: str = "lumina-images"
     oss_endpoint: str = "oss-cn-hangzhou.aliyuncs.com"
     oss_region: str = "cn-hangzhou"
+    oss_mock_mode: bool = True  # If True, save files to local filesystem instead of OSS
+    oss_local_storage_path: str = "uploads"  # Local storage directory for mock mode
+    base_url: str = "http://localhost:8000"  # Base URL for local file access (used in mock mode)
 
     # SMS Configuration
     sms_mock_mode: bool = True
@@ -46,6 +49,21 @@ class Settings(BaseSettings):
     ai_service_url: Optional[str] = None
     ai_service_api_key: Optional[str] = None
     ai_service_mock_mode: bool = False
+    
+    # Image Understanding Service - Using LiteLLM (unified SDK)
+    # Supported providers: openai, azure, anthropic, google, glm, etc.
+    # Model format: "provider/model-name" or just "model-name" (defaults to openai)
+    # Examples: "openai/gpt-4o", "glm/glm-4v-plus", "azure/gpt-4o", "anthropic/claude-3-opus"
+    llm_provider: str = "openai"  # Provider name: openai, glm, azure, anthropic, google, etc.
+    llm_model: str = "gpt-4o"  # Model name (will be prefixed with provider if needed)
+    llm_api_key: Optional[str] = None  # API key for the provider
+    llm_base_url: Optional[str] = None  # Custom base URL (for self-hosted or custom endpoints)
+    llm_mock_mode: bool = True  # If True, return mock analysis results
+    
+    # Legacy GLM config (for backward compatibility)
+    glm_api_key: Optional[str] = None
+    glm_api_url: str = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+    glm_model: str = "glm-4v-plus"
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"

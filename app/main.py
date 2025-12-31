@@ -2,6 +2,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from app.config import settings
 from app.database import engine, Base
 from app.exceptions import LuminaException
@@ -118,6 +120,12 @@ app.include_router(works.router, prefix=settings.api_v1_prefix, tags=["Works"])
 app.include_router(subscription.router, prefix=settings.api_v1_prefix, tags=["Subscription"])
 app.include_router(scenes.router, prefix=settings.api_v1_prefix, tags=["Scenes"])
 app.include_router(settings_api.router, prefix=settings.api_v1_prefix, tags=["Settings"])
+
+# Mount static files for local storage (mock mode)
+if settings.oss_mock_mode or not (settings.oss_access_key_id and settings.oss_access_key_secret):
+    uploads_dir = Path(settings.oss_local_storage_path)
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    app.mount(f"/{settings.oss_local_storage_path}", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 @app.get("/")

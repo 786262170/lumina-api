@@ -13,6 +13,8 @@ from app.schemas.image import (
     BatchProcessResponse,
     ProcessStatusResponse,
     ProcessResultResponse,
+    ImageAnalysisRequest,
+    ImageAnalysisResponse,
     ImageFormat
 )
 from app.services.image_service import (
@@ -23,7 +25,9 @@ from app.services.image_service import (
     generate_task_id,
     generate_image_id
 )
-from app.exceptions import BadRequestException
+from app.exceptions import BadRequestException, NotFoundException
+from app.services.image_understanding_service import analyze_image
+from app.models.image import Image
 import httpx
 import io
 
@@ -108,6 +112,43 @@ async def get_process_result_endpoint(
     return get_process_result(taskId, current_user, db)
 
 
+@router.post("/images/analyze", response_model=ImageAnalysisResponse)
+async def analyze_image_endpoint(
+    request: ImageAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """使用GLM-4.7v分析图片"""
+    # Verify image belongs to user
+    image = db.query(Image).filter(
+        Image.id == request.imageId,
+        Image.user_id == current_user.id
+    ).first()
+    
+    if not image:
+        raise NotFoundException("图片不存在")
+    
+    # Analyze image using configured provider (OpenAI, GLM, or LangGraph)
+    analysis_result = await analyze_image(
+        image.url,
+        request.prompt,
+        request.maxTokens
+    )
+    
+    if not analysis_result:
+        raise BadRequestException("图片分析失败，请稍后重试")
+    
+    return ImageAnalysisResponse(
+        imageId=image.id,
+        description=analysis_result.get("description", "无法生成描述"),
+        tags=analysis_result.get("tags", []),
+        mainSubject=analysis_result.get("main_subject", "未知"),
+        style=analysis_result.get("style", "未知"),
+        qualityScore=analysis_result.get("quality_score", 0.8),
+        suggestions=analysis_result.get("suggestions", [])
+    )
+
+
 @router.get("/images/{imageId}/download")
 async def download_image_endpoint(
     imageId: str,
@@ -117,9 +158,6 @@ async def download_image_endpoint(
     db: Session = Depends(get_db)
 ):
     """下载图片"""
-    from app.models.image import Image
-    from app.exceptions import NotFoundException
-    
     image = db.query(Image).filter(
         Image.id == imageId,
         Image.user_id == current_user.id
@@ -128,7 +166,7 @@ async def download_image_endpoint(
     if not image:
         raise NotFoundException("图片不存在")
     
-    # Download image from OSS
+    # Download image from OSS or local storage
     async with httpx.AsyncClient() as client:
         response = await client.get(image.url)
         if response.status_code == 200:
