@@ -53,8 +53,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ### 5. 访问文档
 
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+服务启动后，可以通过以下地址访问 API 文档：
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **OpenAPI JSON**: http://localhost:8000/openapi.json
+
+> 注意：如果修改了 uvicorn 的 `--port` 参数，请相应调整上述 URL 中的端口号。
 
 ## API 文档
 
