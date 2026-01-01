@@ -43,15 +43,22 @@ class StorageService:
                 f.write(file_content)
             
             # Return full URL with base URL prefix
-            # Format: http://localhost:8000/uploads/...
-            url = f"{settings.base_url.rstrip('/')}/{settings.oss_local_storage_path}/{file_path}"
+            # Use static_domain if configured, otherwise use base_url
+            if settings.static_domain:
+                url = f"https://{settings.static_domain.rstrip('/')}/{settings.oss_local_storage_path}/{file_path}"
+            else:
+                url = f"{settings.base_url.rstrip('/')}/{settings.oss_local_storage_path}/{file_path}"
             logger.debug(f"File saved to local storage: {local_file_path}, URL: {url}")
             return url
         
         # Real OSS mode
         try:
             self.bucket.put_object(file_path, file_content, headers={"Content-Type": content_type})
-            url = f"https://{settings.oss_bucket_name}.{settings.oss_endpoint}/{file_path}"
+            # Use static_domain if configured, otherwise use OSS default URL
+            if settings.static_domain:
+                url = f"https://{settings.static_domain.rstrip('/')}/{file_path}"
+            else:
+                url = f"https://{settings.oss_bucket_name}.{settings.oss_endpoint}/{file_path}"
             logger.debug(f"File uploaded to OSS: {file_path}")
             return url
         except Exception as e:
@@ -83,7 +90,10 @@ class StorageService:
         """
         if self.mock_mode:
             # In mock mode, return full URL with base URL prefix
-            return f"{settings.base_url.rstrip('/')}/{settings.oss_local_storage_path}/{file_path}"
+            if settings.static_domain:
+                return f"https://{settings.static_domain.rstrip('/')}/{settings.oss_local_storage_path}/{file_path}"
+            else:
+                return f"{settings.base_url.rstrip('/')}/{settings.oss_local_storage_path}/{file_path}"
         
         try:
             url = self.bucket.sign_url('GET', file_path, expires)

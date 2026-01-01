@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 120
     jwt_refresh_token_expire_days: int = 30
 
+    # Domain Configuration
+    api_domain: Optional[str] = None  # API domain, e.g., api.lumina.ai
+    static_domain: Optional[str] = None  # Static files domain, e.g., static.lumina.ai
+    base_url: str = "http://localhost:8000"  # Base URL for local file access (used in mock mode)
+    
     # OSS Configuration
     oss_access_key_id: str = ""
     oss_access_key_secret: str = ""
@@ -25,7 +30,6 @@ class Settings(BaseSettings):
     oss_region: str = "cn-hangzhou"
     oss_mock_mode: bool = True  # If True, save files to local filesystem instead of OSS
     oss_local_storage_path: str = "uploads"  # Local storage directory for mock mode
-    base_url: str = "http://localhost:8000"  # Base URL for local file access (used in mock mode)
 
     # SMS Configuration
     sms_mock_mode: bool = True

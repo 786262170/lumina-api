@@ -57,9 +57,21 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 # CORS middleware
+# Configure allowed origins based on environment
+allowed_origins = ["*"]  # Default: allow all (for development)
+if settings.api_domain:
+    # In production, allow API domain and common frontend domains
+    allowed_origins = [
+        f"https://{settings.api_domain}",
+        f"https://www.{settings.api_domain.split('.', 1)[-1] if '.' in settings.api_domain else settings.api_domain}",
+        "https://localhost:3000",  # For local development
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

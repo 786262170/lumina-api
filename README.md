@@ -137,7 +137,18 @@ REDIS_ENABLED=true
 # 或者无密码
 REDIS_URL=redis://localhost:6379/0
 REDIS_ENABLED=true
+
+# 域名配置（生产环境）
+API_DOMAIN=api.lumina.ai
+STATIC_DOMAIN=static.lumina.ai
+BASE_URL=https://api.lumina.ai
 ```
+
+> 💡 **域名配置说明：**
+> - 开发环境可以不配置域名，使用默认的 `http://localhost:8000`
+> - 生产环境需要配置 `API_DOMAIN` 和 `STATIC_DOMAIN`
+> - 详细配置步骤请参考 [域名配置指南](docs/域名配置指南.md)
+> - 快速配置：运行 `./scripts/setup_domains.sh`
 
 ### 5. 初始化数据库
 
