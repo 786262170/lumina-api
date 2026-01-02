@@ -96,23 +96,40 @@ async def upload_images(
         img = PILImage.open(img_buffer)
         width, height = img.size
         
-        # Detect image format
-        img_format, file_ext = detect_image_format(img, file.content_type)
+        # 预处理图片以统一格式（不限制分辨率）：
+        # 1. 转换为 RGB 模式（去除透明度，统一格式）
+        # 2. 统一保存为 JPEG 格式（viapi 更支持）
+        # 注意：不压缩分辨率，保留原始尺寸，在调用 viapi API 时再压缩
+        processed_img = img.convert('RGB')  # 转换为 RGB，去除透明度
+        
+        # 转换为 JPEG 格式（viapi 更支持）
+        output_buffer = io.BytesIO()
+        processed_img.save(output_buffer, format='JPEG', quality=95, optimize=True)
+        processed_content = output_buffer.getvalue()
+        processed_file_size = len(processed_content)
+        
+        # 使用 JPEG 格式
+        img_format = ImageFormat.JPG
+        file_ext = "jpg"
+        content_type = "image/jpeg"
         
         # Log image info for verification
-        logger.debug(f"Image info - Size: {file_size} bytes, Dimensions: {width}x{height}, Format: {img_format.value}, Extension: {file_ext}")
+        logger.debug(f"图片预处理 - 尺寸: {width}x{height}, 格式: JPEG, "
+                    f"原始大小: {file_size} bytes, 处理后大小: {processed_file_size} bytes")
         
         # Generate file path (without storage root prefix, storage_service will add it)
         image_id = generate_image_id()
         file_path = f"{user.id}/{image_id}.{file_ext}"
         
-        # Upload to OSS
-        url = storage_service.upload_file(content, file_path, file.content_type)
+        # Upload processed image to OSS
+        # 优先使用 FileUtils 上传到 viapi 的 region，确保地域一致
+        url = storage_service.upload_file_to_viapi_region(processed_content, file_path, content_type)
         
-        # Generate thumbnail
-        thumbnail_content = storage_service.generate_thumbnail(content)
+        # Generate thumbnail from processed image
+        thumbnail_content = storage_service.generate_thumbnail(processed_content)
         thumbnail_path = f"{user.id}/thumb_{image_id}.{file_ext}"
-        thumbnail_url = storage_service.upload_file(thumbnail_content, thumbnail_path, file.content_type)
+        # 缩略图也使用 FileUtils 上传到 viapi 的 region
+        thumbnail_url = storage_service.upload_file_to_viapi_region(thumbnail_content, thumbnail_path, content_type)
         
         # Save to database
         image = Image(
@@ -123,7 +140,7 @@ async def upload_images(
             thumbnail=thumbnail_url,
             width=width,
             height=height,
-            size=file_size,
+            size=processed_file_size,  # 使用处理后的文件大小
             format=img_format,
             uploaded_at=datetime.utcnow()
         )

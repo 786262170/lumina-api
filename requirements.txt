@@ -24,6 +24,8 @@ alibabacloud-imageenhan20190930==2.0.0  # 图像增强服务
 alibabacloud-imageprocess20200320==2.0.0  # 图像生产服务（图像质量修复、属性增强）
 alibabacloud-tea-openapi==0.3.7  # 阿里云 OpenAPI 核心库
 alibabacloud-tea-util==0.3.11  # 工具库
+viapi-utils  # 阿里云视觉智能开放平台文件工具（用于自动处理地域问题的图片上传）
+aliyun-python-sdk-viapiutils  # 阿里云视觉智能开放平台工具包（FileUtils）
 
 # Testing
 pytest==7.4.3

@@ -23,7 +23,8 @@ async def test_mock_mode():
     print("测试 1: Mock 模式下的图片处理")
     print("=" * 60)
     
-    image_url = "http://example.com/uploads/test.jpg"
+    # 使用真实的 OSS 图片地址（带签名）
+    image_url = "https://lumina-ai.oss-cn-beijing.aliyuncs.com/user_9c121b41a372/img_90b98f2ab708.jpg?Expires=1767356534&OSSAccessKeyId=TMP.3KmprwjFLxpqXZMZrdVo2LAwF9V8AZJ6V1EFvLZBWCyvqyXwFFvzfZ9Ucvqd4mP89Ni6eo8hxKhwywdVpnzC4uoRexEjoJ&Signature=dkMtxpyxog6wakQDGAVPOeWYgwU%3D"
     operations = [
         ImageOperation(type=OperationType.CUTOUT, params={})
     ]
@@ -54,7 +55,8 @@ async def test_different_operations():
     print("测试 2: 不同操作类型")
     print("=" * 60)
     
-    image_url = "http://example.com/uploads/test.jpg"
+    # 使用真实的 OSS 图片地址（带签名）
+    image_url = "https://lumina-ai.oss-cn-beijing.aliyuncs.com/user_9c121b41a372/img_90b98f2ab708.jpg?Expires=1767356534&OSSAccessKeyId=TMP.3KmprwjFLxpqXZMZrdVo2LAwF9V8AZJ6V1EFvLZBWCyvqyXwFFvzfZ9Ucvqd4mP89Ni6eo8hxKhwywdVpnzC4uoRexEjoJ&Signature=dkMtxpyxog6wakQDGAVPOeWYgwU%3D"
     
     operations_list = [
         [ImageOperation(type=OperationType.CUTOUT, params={})],
@@ -85,7 +87,8 @@ async def test_different_scene_types():
     print("测试 3: 不同场景类型")
     print("=" * 60)
     
-    image_url = "http://example.com/uploads/test.jpg"
+    # 使用真实的 OSS 图片地址（带签名）
+    image_url = "https://lumina-ai.oss-cn-beijing.aliyuncs.com/user_9c121b41a372/img_90b98f2ab708.jpg?Expires=1767356534&OSSAccessKeyId=TMP.3KmprwjFLxpqXZMZrdVo2LAwF9V8AZJ6V1EFvLZBWCyvqyXwFFvzfZ9Ucvqd4mP89Ni6eo8hxKhwywdVpnzC4uoRexEjoJ&Signature=dkMtxpyxog6wakQDGAVPOeWYgwU%3D"
     operations = [
         ImageOperation(type=OperationType.CUTOUT, params={})
     ]
@@ -118,7 +121,8 @@ async def test_multiple_operations():
     print("测试 4: 多个操作组合")
     print("=" * 60)
     
-    image_url = "http://example.com/uploads/test.jpg"
+    # 使用真实的 OSS 图片地址（带签名）
+    image_url = "https://lumina-ai.oss-cn-beijing.aliyuncs.com/user_9c121b41a372/img_90b98f2ab708.jpg?Expires=1767356534&OSSAccessKeyId=TMP.3KmprwjFLxpqXZMZrdVo2LAwF9V8AZJ6V1EFvLZBWCyvqyXwFFvzfZ9Ucvqd4mP89Ni6eo8hxKhwywdVpnzC4uoRexEjoJ&Signature=dkMtxpyxog6wakQDGAVPOeWYgwU%3D"
     operations = [
         ImageOperation(type=OperationType.CUTOUT, params={}),
         ImageOperation(type=OperationType.BACKGROUND, params={"backgroundColor": "#FFFFFF"}),
@@ -147,7 +151,8 @@ async def test_custom_quality_and_size():
     print("测试 5: 自定义质量和尺寸")
     print("=" * 60)
     
-    image_url = "http://example.com/uploads/test.jpg"
+    # 使用真实的 OSS 图片地址（带签名）
+    image_url = "https://lumina-ai.oss-cn-beijing.aliyuncs.com/user_9c121b41a372/img_90b98f2ab708.jpg?Expires=1767356534&OSSAccessKeyId=TMP.3KmprwjFLxpqXZMZrdVo2LAwF9V8AZJ6V1EFvLZBWCyvqyXwFFvzfZ9Ucvqd4mP89Ni6eo8hxKhwywdVpnzC4uoRexEjoJ&Signature=dkMtxpyxog6wakQDGAVPOeWYgwU%3D"
     operations = [
         ImageOperation(type=OperationType.RESIZE, params={})
     ]
@@ -191,6 +196,18 @@ async def test_configuration_info():
         print("\n✅ 将使用阿里云 VIAPI 进行图片处理")
     elif settings.ai_service_url and not settings.ai_service_mock_mode:
         print("\n✅ 将使用外部 AI 服务进行图片处理")
+    
+    print("\n" + "=" * 60)
+    print("⚠️  重要提示：OSS 图片访问")
+    print("=" * 60)
+    print("如果测试失败并出现 403 错误，可能的原因：")
+    print("1. OSS 签名 URL 已过期（签名 URL 通常有时效性）")
+    print("2. OSS bucket 是私有的，需要使用带签名的 URL")
+    print("3. 临时凭证（TMP.）可能已失效")
+    print("\n建议：")
+    print("- 使用 Mock 模式进行功能测试（设置 VIAPI_MOCK_MODE=true）")
+    print("- 或者使用 storage_service 生成新的签名 URL")
+    print("- 或者将 OSS bucket 设置为公共读（不推荐生产环境）")
 
 
 async def main():

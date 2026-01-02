@@ -63,6 +63,48 @@ async def _segment_image(
         )
         client = ImagesegClient(config)
         
+        # 保存原始图片，以便在需要时重新压缩
+        original_image_bytes = image_bytes
+        
+        # 辅助函数：压缩图片以确保分辨率不超过限制（2000x2000）
+        def _resize_image_if_needed(image_bytes: bytes, max_size: int = 2000) -> bytes:
+            """如果图片分辨率超过限制，压缩图片"""
+            try:
+                from PIL import Image
+                import io
+                
+                img = Image.open(io.BytesIO(image_bytes))
+                width, height = img.size
+                
+                # 如果图片尺寸超过限制，进行压缩
+                if width > max_size or height > max_size:
+                    # 计算缩放比例，保持宽高比
+                    ratio = min(max_size / width, max_size / height)
+                    new_width = int(width * ratio)
+                    new_height = int(height * ratio)
+                    
+                    logger.debug(f"图片尺寸 {width}x{height} 超过限制，压缩到 {new_width}x{new_height}")
+                    
+                    # 使用高质量重采样
+                    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                    
+                    # 转换为 bytes
+                    output = io.BytesIO()
+                    # 保持原始格式，如果是 PNG 则保存为 PNG，否则保存为 JPEG
+                    if img.format == 'PNG' or image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+                        img.save(output, format='PNG', optimize=True)
+                    else:
+                        img.save(output, format='JPEG', quality=95, optimize=True)
+                    return output.getvalue()
+                
+                return image_bytes
+            except Exception as e:
+                logger.warning(f"压缩图片失败: {e}，使用原图")
+                return image_bytes
+        
+        # 在调用 API 之前先压缩图片（如果上传时已处理过，这里通常不会再次压缩）
+        # 但保留此逻辑作为安全措施，以防从外部 URL 下载的图片未经过预处理
+        image_bytes = _resize_image_if_needed(image_bytes, max_size=2000)
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
         
         # 智能选择分割服务
@@ -86,29 +128,186 @@ async def _segment_image(
         # 根据选择的方法调用不同的 API
         response = None
         
+        # 辅助函数：上传图片到阿里云 OSS（使用 FileUtils 确保地域正确）
+        def _upload_image_to_viapi_oss(image_bytes: bytes) -> Optional[str]:
+            """使用阿里云 FileUtils 上传图片到正确的 region"""
+            import tempfile
+            import os
+            import uuid
+            from datetime import datetime
+            
+            # 先尝试使用 FileUtils（自动处理地域问题）
+            try:
+                from viapi.fileutils import FileUtils
+                file_utils = FileUtils(
+                    settings.viapi_access_key_id,
+                    settings.viapi_access_key_secret
+                )
+                # FileUtils 需要文件路径，先保存为临时文件
+                # 检测图片格式
+                img_format = "jpg"
+                suffix = ".jpg"
+                if image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+                    img_format = "png"
+                    suffix = ".png"
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+                    tmp_file.write(image_bytes)
+                    tmp_file_path = tmp_file.name
+                
+                try:
+                    # 上传图片并获取 OSS URL（自动处理地域问题）
+                    oss_url = file_utils.get_oss_url(tmp_file_path, img_format, True)
+                    logger.debug(f"使用 FileUtils 上传成功，URL: {oss_url[:50]}...")
+                    return oss_url
+                finally:
+                    # 清理临时文件
+                    if os.path.exists(tmp_file_path):
+                        os.unlink(tmp_file_path)
+            except ImportError:
+                logger.warning("viapi.fileutils 未安装，使用 storage_service（可能遇到地域问题）")
+            except Exception as e:
+                logger.warning(f"使用 FileUtils 上传失败: {e}，降级到 storage_service")
+            
+            # 降级：使用 storage_service
+            # 注意：如果 OSS region 与 viapi_region 不匹配，可能会失败
+            try:
+                file_id = uuid.uuid4().hex[:12]
+                # 检测图片格式
+                content_type = "image/jpeg"
+                file_ext = "jpg"
+                if image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+                    content_type = "image/png"
+                    file_ext = "png"
+                
+                file_path = f"temp/{datetime.now().strftime('%Y%m%d')}/{file_id}.{file_ext}"
+                url = storage_service.upload_file(
+                    image_bytes,
+                    file_path,
+                    content_type=content_type
+                )
+                logger.debug(f"使用 storage_service 上传成功，URL: {url[:50]}...")
+                return url
+            except Exception as e:
+                logger.error(f"上传图片到 OSS 失败: {e}", exc_info=True)
+                return None
+        
         if segmentation_method == "commodity":
             # 使用商品分割
             try:
+                # 阿里云 API 要求必须提供 image_url，且地域必须匹配
+                # 如果提供了原始 URL，先尝试使用；如果失败（地域不匹配），则上传新图片
+                request_url = image_url
+                if not request_url:
+                    # 如果没有 URL，上传图片获取 URL
+                    request_url = _upload_image_to_viapi_oss(image_bytes)
+                    if not request_url:
+                        raise Exception("无法上传图片到 OSS")
+                
                 request = imageseg_models.SegmentCommodityRequest(
-                    image_url=None,
+                    image_url=request_url,
                     return_form="png"
                 )
-                request.body = image_base64
                 response = client.segment_commodity(request)
                 logger.debug("使用商品分割服务")
             except Exception as e:
-                logger.warning(f"商品分割失败，降级到通用分割: {e}")
-                segmentation_method = "common"
+                error_msg = str(e)
+                # 如果是分辨率错误，先压缩图片再重试
+                if "InvalidFile.Resolution" in error_msg or "imageOversized" in error_msg or "分辨率" in error_msg:
+                    logger.warning(f"图片分辨率超出限制，压缩后重试: {e}")
+                    try:
+                        # 进一步压缩图片（压缩到更小的尺寸，使用原始图片）
+                        compressed_bytes = _resize_image_if_needed(original_image_bytes, max_size=1900)
+                        request_url = _upload_image_to_viapi_oss(compressed_bytes)
+                        if request_url:
+                            request = imageseg_models.SegmentCommodityRequest(
+                                image_url=request_url,
+                                return_form="png"
+                            )
+                            response = client.segment_commodity(request)
+                            logger.debug("使用商品分割服务（压缩后重试）")
+                        else:
+                            raise Exception("重新上传图片失败")
+                    except Exception as retry_e:
+                        logger.warning(f"商品分割失败（压缩后），降级到通用分割: {retry_e}")
+                        segmentation_method = "common"
+                # 如果是地域错误，尝试重新上传图片
+                elif "InvalidImage.Region" in error_msg or "invalid region" in error_msg.lower():
+                    logger.warning(f"图片 URL 地域不匹配，重新上传: {e}")
+                    try:
+                        request_url = _upload_image_to_viapi_oss(image_bytes)
+                        if request_url:
+                            request = imageseg_models.SegmentCommodityRequest(
+                                image_url=request_url,
+                                return_form="png"
+                            )
+                            response = client.segment_commodity(request)
+                            logger.debug("使用商品分割服务（重新上传后）")
+                        else:
+                            raise Exception("重新上传图片失败")
+                    except Exception as retry_e:
+                        logger.warning(f"商品分割失败，降级到通用分割: {retry_e}")
+                        segmentation_method = "common"
+                else:
+                    logger.warning(f"商品分割失败，降级到通用分割: {e}")
+                    segmentation_method = "common"
         
         if segmentation_method == "common" or response is None:
             # 使用通用分割
-            request = imageseg_models.SegmentCommonImageRequest(
-                image_url=None,
-                return_form="png"  # 返回 PNG 格式（支持透明背景）
-            )
-            request.body = image_base64
-            response = client.segment_common_image(request)
-            logger.debug("使用通用分割服务")
+            try:
+                # 阿里云 API 要求必须提供 image_url，且地域必须匹配
+                # 如果提供了原始 URL，先尝试使用；如果失败（地域不匹配），则上传新图片
+                request_url = image_url
+                if not request_url:
+                    # 如果没有 URL，上传图片获取 URL
+                    request_url = _upload_image_to_viapi_oss(image_bytes)
+                    if not request_url:
+                        raise Exception("无法上传图片到 OSS")
+                
+                request = imageseg_models.SegmentCommonImageRequest(
+                    image_url=request_url,
+                    return_form="png"  # 返回 PNG 格式（支持透明背景）
+                )
+                response = client.segment_common_image(request)
+                logger.debug("使用通用分割服务")
+            except Exception as e:
+                error_msg = str(e)
+                # 如果是分辨率错误，先压缩图片再重试
+                if "InvalidFile.Resolution" in error_msg or "imageOversized" in error_msg or "分辨率" in error_msg:
+                    logger.warning(f"图片分辨率超出限制，压缩后重试: {e}")
+                    try:
+                        # 进一步压缩图片（压缩到更小的尺寸，使用原始图片）
+                        compressed_bytes = _resize_image_if_needed(original_image_bytes, max_size=1900)
+                        request_url = _upload_image_to_viapi_oss(compressed_bytes)
+                        if not request_url:
+                            raise Exception("重新上传图片失败")
+                        request = imageseg_models.SegmentCommonImageRequest(
+                            image_url=request_url,
+                            return_form="png"
+                        )
+                        response = client.segment_common_image(request)
+                        logger.debug("使用通用分割服务（压缩后重试）")
+                    except Exception as retry_e:
+                        logger.error(f"重新上传后仍然失败（分辨率问题）: {retry_e}", exc_info=True)
+                        raise
+                # 如果是地域错误，尝试重新上传图片
+                elif "InvalidImage.Region" in error_msg or "invalid region" in error_msg.lower():
+                    logger.warning(f"图片 URL 地域不匹配，重新上传: {e}")
+                    try:
+                        request_url = _upload_image_to_viapi_oss(image_bytes)
+                        if not request_url:
+                            raise Exception("重新上传图片失败")
+                        request = imageseg_models.SegmentCommonImageRequest(
+                            image_url=request_url,
+                            return_form="png"
+                        )
+                        response = client.segment_common_image(request)
+                        logger.debug("使用通用分割服务（重新上传后）")
+                    except Exception as retry_e:
+                        logger.error(f"重新上传后仍然失败（地域问题）: {retry_e}", exc_info=True)
+                        raise
+                else:
+                    raise
         
         # 处理响应
         if response and response.body.data:
@@ -412,46 +611,66 @@ async def process_image_with_viapi(
         logger.error("All image processing operations failed")
         return None
     
-    # 上传处理后的图片到 OSS
-    try:
-        # 生成文件路径
-        import uuid
-        from datetime import datetime
-        file_id = uuid.uuid4().hex[:12]
-        file_path = f"processed/{datetime.now().strftime('%Y%m%d')}/{file_id}.jpg"
-        
-        # 上传到 OSS
-        processed_url = storage_service.upload_file(
-            processed_bytes,
-            file_path,
-            content_type="image/jpeg"
-        )
-        
-        # 生成缩略图
-        thumbnail_bytes = storage_service.generate_thumbnail(processed_bytes)
-        thumbnail_path = f"processed/{datetime.now().strftime('%Y%m%d')}/thumb_{file_id}.jpg"
-        thumbnail_url = storage_service.upload_file(
-            thumbnail_bytes,
-            thumbnail_path,
-            content_type="image/jpeg"
-        )
-        
-        # 获取图片尺寸
-        from PIL import Image
-        import io
-        img = Image.open(io.BytesIO(processed_bytes))
-        width, height = img.size
-        
-        return {
-            "processed_url": processed_url,
-            "thumbnail_url": thumbnail_url,
-            "width": width,
-            "height": height,
-            "size": len(processed_bytes),
-            "format": "jpg"
-        }
+    # 上传处理后的图片到 OSS（带重试机制）
+    import uuid
+    from datetime import datetime
+    from PIL import Image
+    import io
     
-    except Exception as e:
-        logger.error(f"Error uploading processed image: {e}", exc_info=True)
-        return None
+    max_upload_retries = 3
+    
+    for upload_attempt in range(max_upload_retries):
+        try:
+            # 生成文件路径
+            file_id = uuid.uuid4().hex[:12]
+            file_path = f"processed/{datetime.now().strftime('%Y%m%d')}/{file_id}.jpg"
+            
+            # 上传到 OSS（storage_service 内部已有重试机制）
+            processed_url = storage_service.upload_file(
+                processed_bytes,
+                file_path,
+                content_type="image/jpeg"
+            )
+            
+            # 生成缩略图
+            thumbnail_bytes = storage_service.generate_thumbnail(processed_bytes)
+            thumbnail_path = f"processed/{datetime.now().strftime('%Y%m%d')}/thumb_{file_id}.jpg"
+            
+            # 上传缩略图
+            thumbnail_url = storage_service.upload_file(
+                thumbnail_bytes,
+                thumbnail_path,
+                content_type="image/jpeg"
+            )
+            
+            # 获取图片尺寸
+            img = Image.open(io.BytesIO(processed_bytes))
+            width, height = img.size
+            
+            return {
+                "processed_url": processed_url,
+                "thumbnail_url": thumbnail_url,
+                "width": width,
+                "height": height,
+                "size": len(processed_bytes),
+                "format": "jpg"
+            }
+        
+        except Exception as e:
+            error_msg = str(e)
+            # 如果是连接错误，可以重试
+            is_retryable = any(keyword in error_msg.lower() for keyword in [
+                'connection', 'reset', 'timeout', 'network', 'peer'
+            ])
+            
+            if is_retryable and upload_attempt < max_upload_retries - 1:
+                wait_time = 2 * (upload_attempt + 1)  # 指数退避：2s, 4s, 6s
+                logger.warning(f"上传处理后的图片失败（尝试 {upload_attempt + 1}/{max_upload_retries}）: {e}. "
+                             f"{wait_time}秒后重试...")
+                import asyncio
+                await asyncio.sleep(wait_time)
+                continue
+            else:
+                logger.error(f"上传处理后的图片失败（已重试 {upload_attempt + 1} 次）: {e}", exc_info=True)
+                return None
 
