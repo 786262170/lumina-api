@@ -54,12 +54,10 @@ class StorageService:
         # Real OSS mode
         try:
             self.bucket.put_object(file_path, file_content, headers={"Content-Type": content_type})
-            # Use static_domain if configured, otherwise use OSS default URL
-            if settings.static_domain:
-                url = f"https://{settings.static_domain.rstrip('/')}/{file_path}"
-            else:
-                url = f"https://{settings.oss_bucket_name}.{settings.oss_endpoint}/{file_path}"
-            logger.debug(f"File uploaded to OSS: {file_path}")
+            # Generate signed URL for private bucket access (expires in 1 year)
+            # This ensures files can be accessed even if bucket is private
+            url = self.bucket.sign_url('GET', file_path, 31536000)  # 1 year = 31536000 seconds
+            logger.debug(f"File uploaded to OSS: {file_path}, signed URL generated")
             return url
         except Exception as e:
             logger.error(f"OSS upload error: {e}", exc_info=True)

@@ -18,6 +18,13 @@ redis==5.0.1
 # AI Services - Unified LLM SDK
 litellm==1.40.0  # Unified SDK for multiple LLM providers (OpenAI, GLM, Claude, etc.)
 
+# 阿里云视觉智能开放平台 SDK
+alibabacloud-imageseg20191230==2.0.0  # 图像分割服务
+alibabacloud-imageenhan20190930==2.0.0  # 图像增强服务
+alibabacloud-imageprocess20200320==2.0.0  # 图像生产服务（图像质量修复、属性增强）
+alibabacloud-tea-openapi==0.3.7  # 阿里云 OpenAPI 核心库
+alibabacloud-tea-util==0.3.11  # 工具库
+
 # Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1

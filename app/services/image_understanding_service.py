@@ -88,6 +88,9 @@ def _get_model_name() -> str:
         "claude": "anthropic",
         "google": "gemini",
         "gemini": "gemini",
+        "aliyun": "dashscope",  # 阿里云通义千问使用 dashscope
+        "dashscope": "dashscope",  # 阿里云 DashScope
+        "qwen": "dashscope",  # 通义千问别名
     }
     
     mapped_provider = provider_map.get(provider, provider)
@@ -132,6 +135,7 @@ async def analyze_image(
     - Azure OpenAI: azure/gpt-4o
     - Anthropic: anthropic/claude-3-opus-20240229
     - Google: gemini/gemini-pro-vision
+    - 阿里云通义千问: dashscope/qwen-vl-plus, dashscope/qwen-vl-max, dashscope/qwen-vl
     
     Args:
         image_url: URL of the image to analyze
@@ -215,6 +219,8 @@ async def analyze_image(
                 os.environ["ANTHROPIC_API_KEY"] = api_key
             elif provider == "google" or "gemini" in model:
                 os.environ["GEMINI_API_KEY"] = api_key
+            elif provider in ["aliyun", "dashscope", "qwen"] or "dashscope" in model or "qwen" in model.lower():
+                os.environ["DASHSCOPE_API_KEY"] = api_key
             else:
                 # Generic API key
                 litellm_params["api_key"] = api_key
