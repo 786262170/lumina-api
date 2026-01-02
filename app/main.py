@@ -3,14 +3,41 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 from pathlib import Path
 from app.config import settings
 from app.database import engine, Base
 from app.exceptions import LuminaException
 from app.schemas.common import ErrorResponse, ErrorDetail
+from app.utils.log_cleanup import log_cleanup_task
+from app.utils.logger import logger, get_log_size_info
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动时执行
+    logger.info("应用启动中...")
+
+    # 显示日志目录信息
+    log_info = get_log_size_info()
+    logger.info(f"日志目录信息: {log_info['file_count']} 个文件, 总大小 {log_info['total_size_mb']} MB")
+
+    # 启动日志清理任务
+    if settings.log_cleanup_enabled:
+        await log_cleanup_task.start()
+    else:
+        logger.info("日志清理功能已禁用")
+
+    yield
+
+    # 关闭时执行
+    logger.info("应用关闭中...")
+    await log_cleanup_task.stop()
+
 
 app = FastAPI(
     title="Lumina AI API",
@@ -18,6 +45,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 

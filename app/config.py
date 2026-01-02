@@ -85,6 +85,13 @@ class Settings(BaseSettings):
     redis_password: Optional[str] = None
     redis_enabled: bool = False
 
+    # Logging Configuration
+    log_max_size_mb: int = 50  # Maximum size of each log file before rotation
+    log_backup_count: int = 5  # Number of backup files to keep
+    log_cleanup_max_size_mb: int = 50  # Maximum size of individual log file before deletion
+    log_cleanup_enabled: bool = True  # Enable automatic log cleanup
+    log_cleanup_interval_hours: int = 24  # Run cleanup every N hours
+
     class Config:
         env_file = ".env"
         case_sensitive = False
