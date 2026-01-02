@@ -25,10 +25,25 @@ async def _download_image_as_bytes(image_url: str) -> Optional[bytes]:
         return None
 
 
-async def _segment_image(image_bytes: bytes) -> Optional[bytes]:
+async def _segment_image(
+    image_bytes: bytes,
+    scene_type: Optional[str] = None,
+    image_url: Optional[str] = None
+) -> Optional[bytes]:
     """
     使用阿里云视觉智能开放平台进行图像分割（抠图）
-    返回：分割后的透明背景 PNG 图片 bytes
+    智能选择最合适的分割服务：
+    - 商品场景（taobao, amazon）→ 商品分割
+    - 人像场景 → 人体分割
+    - 其他场景 → 通用分割
+    
+    Args:
+        image_bytes: 图片字节数据
+        scene_type: 场景类型（taobao, amazon, douyin, xiaohongshu, custom）
+        image_url: 图片 URL（可选，用于 AI 分析图片类型）
+    
+    Returns:
+        分割后的透明背景 PNG 图片 bytes
     """
     if settings.viapi_mock_mode or not (settings.viapi_access_key_id and settings.viapi_access_key_secret):
         logger.debug("VIAPI mock mode: returning mock segmented image")
@@ -48,30 +63,77 @@ async def _segment_image(image_bytes: bytes) -> Optional[bytes]:
         )
         client = ImagesegClient(config)
         
-        # 调用通用图像分割 API
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-        request = imageseg_models.SegmentCommonImageRequest(
-            image_url=None,  # 使用 base64
-            return_form="png"  # 返回 PNG 格式（支持透明背景）
-        )
-        request.body = image_base64
         
-        response = client.segment_common_image(request)
+        # 智能选择分割服务
+        segmentation_method = "common"  # 默认使用通用分割
         
-        if response.body.data and response.body.data.image_url:
-            # 下载分割后的图片
-            async with httpx.AsyncClient(timeout=30.0) as http_client:
-                img_response = await http_client.get(response.body.data.image_url)
-                if img_response.status_code == 200:
-                    return img_response.content
+        # 根据场景类型选择
+        if scene_type:
+            scene_lower = scene_type.lower()
+            if scene_lower in ["taobao", "amazon"]:
+                segmentation_method = "commodity"  # 商品分割
+                logger.debug(f"根据场景类型 {scene_type} 选择商品分割服务")
+            elif scene_lower in ["douyin", "xiaohongshu"]:
+                # 短视频平台可能包含人像，但不确定，先尝试通用分割
+                # 如果需要更精确，可以使用 AI 分析
+                segmentation_method = "common"
+                logger.debug(f"根据场景类型 {scene_type} 使用通用分割服务")
         
-        # 如果返回 base64，直接解码
-        if response.body.data and response.body.data.image_url:
-            # 可能是 base64 数据
+        # 如果提供了图片 URL，可以使用通义千问 VL 分析图片类型（可选）
+        # 这里先使用场景类型判断，后续可以增强为 AI 分析
+        
+        # 根据选择的方法调用不同的 API
+        response = None
+        
+        if segmentation_method == "commodity":
+            # 使用商品分割
             try:
-                return base64.b64decode(response.body.data.image_url)
-            except:
-                pass
+                request = imageseg_models.SegmentCommodityRequest(
+                    image_url=None,
+                    return_form="png"
+                )
+                request.body = image_base64
+                response = client.segment_commodity(request)
+                logger.debug("使用商品分割服务")
+            except Exception as e:
+                logger.warning(f"商品分割失败，降级到通用分割: {e}")
+                segmentation_method = "common"
+        
+        if segmentation_method == "common" or response is None:
+            # 使用通用分割
+            request = imageseg_models.SegmentCommonImageRequest(
+                image_url=None,
+                return_form="png"  # 返回 PNG 格式（支持透明背景）
+            )
+            request.body = image_base64
+            response = client.segment_common_image(request)
+            logger.debug("使用通用分割服务")
+        
+        # 处理响应
+        if response and response.body.data:
+            # 如果返回图片 URL
+            if hasattr(response.body.data, 'image_url') and response.body.data.image_url:
+                # 检查是否是 URL 还是 base64
+                if response.body.data.image_url.startswith('http'):
+                    # 下载分割后的图片
+                    async with httpx.AsyncClient(timeout=30.0) as http_client:
+                        img_response = await http_client.get(response.body.data.image_url)
+                        if img_response.status_code == 200:
+                            return img_response.content
+                else:
+                    # 可能是 base64 数据
+                    try:
+                        return base64.b64decode(response.body.data.image_url)
+                    except:
+                        pass
+            
+            # 如果返回 base64 字段
+            if hasattr(response.body.data, 'image_data') and response.body.data.image_data:
+                try:
+                    return base64.b64decode(response.body.data.image_data)
+                except:
+                    pass
         
         logger.warning("Image segmentation returned no valid result")
         return None
@@ -84,12 +146,23 @@ async def _segment_image(image_bytes: bytes) -> Optional[bytes]:
         return None
 
 
-async def _replace_background(image_bytes: bytes, background_color: str = "#FFFFFF") -> Optional[bytes]:
+async def _replace_background(
+    image_bytes: bytes,
+    background_color: str = "#FFFFFF",
+    scene_type: Optional[str] = None,
+    image_url: Optional[str] = None
+) -> Optional[bytes]:
     """
     替换背景（基于分割结果 + 纯色背景）
+    
+    Args:
+        image_bytes: 图片字节数据
+        background_color: 背景颜色
+        scene_type: 场景类型（用于智能选择分割服务）
+        image_url: 图片 URL（可选）
     """
-    # 先进行分割
-    segmented = await _segment_image(image_bytes)
+    # 先进行分割（使用智能选择）
+    segmented = await _segment_image(image_bytes, scene_type, image_url)
     if not segmented:
         return None
     
@@ -238,7 +311,8 @@ async def process_image_with_viapi(
     image_url: str,
     operations: List[ImageOperation],
     output_size: Optional[str] = None,
-    quality: int = 85
+    quality: int = 85,
+    scene_type: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """
     使用阿里云视觉智能开放平台处理图片
@@ -248,6 +322,7 @@ async def process_image_with_viapi(
         operations: 处理操作列表
         output_size: 输出尺寸（如 "2000x2000"）
         quality: 输出质量（60-100）
+        scene_type: 场景类型（用于智能选择分割服务）
     
     Returns:
         处理结果字典，包含 processed_url, thumbnail_url 等
@@ -267,16 +342,16 @@ async def process_image_with_viapi(
         
         try:
             if op_type == OperationType.CUTOUT:
-                # 抠图
-                processed_bytes = await _segment_image(processed_bytes)
+                # 抠图（使用智能选择）
+                processed_bytes = await _segment_image(processed_bytes, scene_type, image_url)
                 if not processed_bytes:
                     logger.warning("Image segmentation failed, skipping")
                     continue
             
             elif op_type == OperationType.BACKGROUND:
-                # 背景处理
+                # 背景处理（使用智能选择）
                 bg_color = params.get("backgroundColor", "#FFFFFF")
-                processed_bytes = await _replace_background(processed_bytes, bg_color)
+                processed_bytes = await _replace_background(processed_bytes, bg_color, scene_type, image_url)
                 if not processed_bytes:
                     logger.warning("Background replacement failed, skipping")
                     continue

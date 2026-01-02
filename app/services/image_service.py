@@ -225,7 +225,8 @@ async def execute_image_processing(
             operations,
             output_size,
             quality,
-            edge_smoothing
+            edge_smoothing,
+            task.scene_type  # 传递场景类型用于智能选择分割服务
         )
         
         if not result:
