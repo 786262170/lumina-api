@@ -44,8 +44,10 @@ app = FastAPI(
     description="Lumina AI 图片处理应用后端API文档\n\n认证方式：使用Bearer Token认证，在Header中添加 `Authorization: Bearer {token}`",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url=None,  # 禁用 Redoc，只使用 Swagger UI（更稳定）
+    redoc_url="/redoc",
     lifespan=lifespan,
+    # 使用 unpkg.com CDN（国内访问更稳定）
+    redoc_js_url="https://unpkg.com/redoc@2.0.0/bundles/redoc.standalone.js",
 )
 
 
