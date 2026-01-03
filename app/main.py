@@ -46,6 +46,8 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
+    # 使用稳定的 Redoc 版本，避免 @next 版本的不稳定性
+    redoc_js_url="https://cdn.jsdelivr.net/npm/redoc@2.0.0/bundles/redoc.standalone.js",
 )
 
 
