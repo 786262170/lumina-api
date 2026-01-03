@@ -1,8 +1,9 @@
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.docs import get_redoc_html
 from contextlib import asynccontextmanager
 from pathlib import Path
 from app.config import settings
@@ -44,10 +45,8 @@ app = FastAPI(
     description="Lumina AI 图片处理应用后端API文档\n\n认证方式：使用Bearer Token认证，在Header中添加 `Authorization: Bearer {token}`",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc",
+    redoc_url=None,  # 禁用默认 redoc，使用自定义路由
     lifespan=lifespan,
-    # 使用 unpkg.com CDN（国内访问更稳定）
-    redoc_js_url="https://unpkg.com/redoc@2.0.0/bundles/redoc.standalone.js",
 )
 
 
@@ -162,6 +161,25 @@ app.include_router(works.router, prefix=settings.api_v1_prefix, tags=["Works"])
 app.include_router(subscription.router, prefix=settings.api_v1_prefix, tags=["Subscription"])
 app.include_router(scenes.router, prefix=settings.api_v1_prefix, tags=["Scenes"])
 app.include_router(settings_api.router, prefix=settings.api_v1_prefix, tags=["Settings"])
+
+# Custom ReDoc route with reliable CDN
+@app.get("/redoc", include_in_schema=False)
+async def redoc_html():
+    """自定义 ReDoc 页面，使用可靠的 CDN"""
+    # 使用多个 CDN 备选方案，确保至少一个可用
+    redoc_cdns = [
+        "https://unpkg.com/redoc@2.1.3/bundles/redoc.standalone.js",  # unpkg CDN
+        "https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.js",  # jsDelivr CDN
+        "https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js",  # Redocly CDN
+    ]
+    
+    # 使用第一个 CDN（通常最可靠）
+    return get_redoc_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - ReDoc",
+        redoc_js_url=redoc_cdns[0],
+    )
+
 
 # Mount static files for local storage (mock mode)
 if settings.oss_mock_mode or not (settings.oss_access_key_id and settings.oss_access_key_secret):
