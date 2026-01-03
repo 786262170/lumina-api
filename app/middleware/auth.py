@@ -13,7 +13,6 @@ async def verify_token_middleware(request: Request, call_next):
     public_paths = [
         "/docs",
         "/openapi.json",
-        "/redoc",
         "/v1/auth/send-code",
         "/v1/auth/login",
         "/v1/auth/wechat-login",
