@@ -98,6 +98,7 @@ class StorageService:
         """
         # 如果 viapi 未配置，使用普通上传
         if not settings.viapi_access_key_id or not settings.viapi_access_key_secret:
+            logger.warning(f"viapi 未配置，使用普通 OSS 上传（region: {settings.oss_region}），可能与 viapi region ({settings.viapi_region}) 不匹配")
             return self.upload_file(file_content, file_path, content_type)
         
         # 尝试使用 FileUtils 上传到 viapi 的 region
@@ -132,10 +133,10 @@ class StorageService:
                 if os.path.exists(tmp_file_path):
                     os.unlink(tmp_file_path)
         except ImportError:
-            logger.warning("viapi.fileutils 未安装，使用普通 OSS 上传（可能遇到地域问题）")
+            logger.warning(f"viapi.fileutils 未安装，使用普通 OSS 上传（OSS region: {settings.oss_region}, viapi region: {settings.viapi_region}），可能遇到地域不匹配问题")
             return self.upload_file(file_content, file_path, content_type)
         except Exception as e:
-            logger.warning(f"使用 FileUtils 上传失败: {e}，降级到普通 OSS 上传")
+            logger.warning(f"使用 FileUtils 上传失败: {e}，降级到普通 OSS 上传（OSS region: {settings.oss_region}, viapi region: {settings.viapi_region}）")
             return self.upload_file(file_content, file_path, content_type)
     
     def generate_thumbnail(

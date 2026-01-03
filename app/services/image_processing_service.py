@@ -625,8 +625,9 @@ async def process_image_with_viapi(
             file_id = uuid.uuid4().hex[:12]
             file_path = f"processed/{datetime.now().strftime('%Y%m%d')}/{file_id}.jpg"
             
-            # 上传到 OSS（storage_service 内部已有重试机制）
-            processed_url = storage_service.upload_file(
+            # 上传到 OSS（使用 viapi region，确保地域一致）
+            # 优先使用 FileUtils 上传到 viapi 的 region，避免地域不匹配问题
+            processed_url = storage_service.upload_file_to_viapi_region(
                 processed_bytes,
                 file_path,
                 content_type="image/jpeg"
@@ -636,8 +637,8 @@ async def process_image_with_viapi(
             thumbnail_bytes = storage_service.generate_thumbnail(processed_bytes)
             thumbnail_path = f"processed/{datetime.now().strftime('%Y%m%d')}/thumb_{file_id}.jpg"
             
-            # 上传缩略图
-            thumbnail_url = storage_service.upload_file(
+            # 上传缩略图（使用 viapi region）
+            thumbnail_url = storage_service.upload_file_to_viapi_region(
                 thumbnail_bytes,
                 thumbnail_path,
                 content_type="image/jpeg"

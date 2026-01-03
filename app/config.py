@@ -23,11 +23,13 @@ class Settings(BaseSettings):
     base_url: str = "http://localhost:8000"  # Base URL for local file access (used in mock mode)
     
     # OSS Configuration
+    # 注意：建议 OSS region 与 viapi_region 保持一致，避免地域不匹配问题
+    # 推荐统一使用 cn-beijing（北京），viapi 和 OSS 都支持
     oss_access_key_id: str = ""
     oss_access_key_secret: str = ""
     oss_bucket_name: str = "lumina-images"
-    oss_endpoint: str = "oss-cn-hangzhou.aliyuncs.com"
-    oss_region: str = "cn-hangzhou"
+    oss_endpoint: str = "oss-cn-beijing.aliyuncs.com"  # 建议与 viapi_region 保持一致
+    oss_region: str = "cn-beijing"  # 建议与 viapi_region 保持一致
     oss_mock_mode: bool = True  # If True, save files to local filesystem instead of OSS
     oss_local_storage_path: str = "uploads"  # Local storage directory for mock mode
 
@@ -55,9 +57,11 @@ class Settings(BaseSettings):
     ai_service_mock_mode: bool = False
     
     # 阿里云视觉智能开放平台配置 (Image Processing)
+    # 注意：建议 viapi_region 与 OSS region 保持一致，避免地域不匹配问题
+    # 支持的区域：cn-beijing（北京）、cn-shanghai（上海）、cn-hangzhou（杭州）、cn-shenzhen（深圳）
     viapi_access_key_id: Optional[str] = None  # 阿里云 AccessKey ID (可与 OSS 共用)
     viapi_access_key_secret: Optional[str] = None  # 阿里云 AccessKey Secret (可与 OSS 共用)
-    viapi_region: str = "cn-shanghai"  # 服务区域
+    viapi_region: str = "cn-beijing"  # 服务区域（推荐与 OSS region 保持一致）
     viapi_mock_mode: bool = True  # If True, return mock processed image
     
     # Image Understanding Service - Using LiteLLM (unified SDK)
